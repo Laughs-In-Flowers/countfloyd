@@ -27,6 +27,7 @@ Godeps/*
 !Godeps/Godeps.json
 
 countfloyd
+lib/cfc/cfc
 _back
 *.out
 *.old.*
