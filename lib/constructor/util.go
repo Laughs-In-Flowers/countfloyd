@@ -20,14 +20,11 @@ func construct(
 	raw []string,
 	values []string,
 	efn feature.EmitFn,
-	mfn feature.MapFn) (feature.Informer, feature.Emitter, feature.Mapper) {
-	if set != nil {
-		set = append(set, "")
-	}
-	if set == nil {
-		set = []string{""}
-	}
-	return feature.NewInformer(from, set, tag, raw, values),
+	mfn feature.MapFn,
+) (feature.Informer, feature.Emitter, feature.Mapper) {
+	ss := []string{""}
+	ss = append(ss, set...)
+	return feature.NewInformer(from, ss, tag, raw, values),
 		feature.NewEmitter(efn),
 		feature.NewMapper(mfn)
 }

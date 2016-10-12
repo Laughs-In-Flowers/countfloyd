@@ -10,7 +10,6 @@ import (
 
 var WeightedString feature.Constructor
 
-//
 func weightedString(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	cs, numbers := wsArgParser(e, r.MustGetValues())
 

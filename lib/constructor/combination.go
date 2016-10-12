@@ -52,7 +52,6 @@ func (sl StringReplacer) ValueNoSame() (string, bool) {
 	return strings.Join(spl, "+"), true
 }
 
-//Combination generator
 func Combinations(list Replacer, selectNum int, repeatable bool, buf int) (c chan Replacer) {
 	c = make(chan Replacer, buf)
 	index := make([]int, list.Len(), list.Len())
@@ -77,7 +76,6 @@ func Combinations(list Replacer, selectNum int, repeatable bool, buf int) (c cha
 	return
 }
 
-//Combination generator for int slice
 func combinations(list []int, select_num, buf int) (c chan []int) {
 	c = make(chan []int, buf)
 	go func() {
@@ -100,7 +98,6 @@ func combinations(list []int, select_num, buf int) (c chan []int) {
 	return
 }
 
-//Repeated combination generator for int slice
 func repeated_combinations(list []int, select_num, buf int) (c chan []int) {
 	c = make(chan []int, buf)
 	go func() {

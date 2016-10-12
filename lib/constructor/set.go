@@ -26,8 +26,6 @@ func replaceWithLocals(l map[string]string, vals []string) []string {
 	return ret
 }
 
-// generates a feature as a key to multiple set features, in addition to
-// creating set local features along the way
 func generateSetKey(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.MustGetValues()
 	key := list[0]

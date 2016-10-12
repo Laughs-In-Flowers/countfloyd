@@ -2,20 +2,20 @@ package constructor
 
 import "fmt"
 
-type featureError struct {
+type cError struct {
 	err  string
 	vals []interface{}
 }
 
-func (m *featureError) Error() string {
-	return fmt.Sprintf("%s", fmt.Sprintf(m.err, m.vals...))
+func (c *cError) Error() string {
+	return fmt.Sprintf("%s", fmt.Sprintf(c.err, c.vals...))
 }
 
-func (m *featureError) Out(vals ...interface{}) *featureError {
-	m.vals = vals
-	return m
+func (c *cError) Out(vals ...interface{}) *cError {
+	c.vals = vals
+	return c
 }
 
-func Crror(err string) *featureError {
-	return &featureError{err: err}
+func Crror(err string) *cError {
+	return &cError{err: err}
 }

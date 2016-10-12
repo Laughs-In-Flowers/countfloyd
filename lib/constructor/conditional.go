@@ -5,8 +5,6 @@ import (
 	"github.com/Laughs-In-Flowers/data"
 )
 
-// apply the first feature listed with tag, and subsequent features based on
-// the result of the first.
 func conditionalInitialComposite(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.Values
 	firstTag, firstFeature := split(list[0])

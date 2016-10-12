@@ -151,6 +151,7 @@ func New(c ...Config) *Server {
 		os.Kill,
 		syscall.SIGINT,
 		syscall.SIGTERM,
+		syscall.SIGKILL,
 	)
 
 	s.Configuration = newConfiguration(s, c...)
@@ -159,6 +160,8 @@ func New(c ...Config) *Server {
 }
 
 func (s *Server) Serve() {
+	s.Print("serving....")
+
 	go s.listen()
 
 	for {
@@ -201,7 +204,7 @@ func (s *Server) Stop() {
 func (s *Server) SignalHandler(sig os.Signal) {
 	s.Printf("received signal %v", sig)
 	switch sig {
-	case os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGTERM:
+	case os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL:
 		s.Stop()
 	}
 }

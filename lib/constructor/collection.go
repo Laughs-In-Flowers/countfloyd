@@ -7,10 +7,6 @@ import (
 
 var CollectionMember feature.Constructor
 
-// apply the feature relative to (numbered) position as collection member across
-// multiple generated instances
-// ("myTag", []string{"1-3", "a",}, Env)
-// feature generates: myTag: 1, myTag: 2, myTag: 3, myTag: a
 func collectionMember(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.Values
 	ex := listExpand(list)
