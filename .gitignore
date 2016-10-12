@@ -27,7 +27,7 @@ Godeps/*
 !Godeps/Godeps.json
 
 countfloyd
-lib/cfc/cfc
+lib/cfs/cfs
 example/example
 _back
 *.out
