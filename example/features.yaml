@@ -1,0 +1,40 @@
+---                                                   
+- tag: on-off
+  apply: random
+  values: [1, "on", "off"]
+- tag: true-false
+  apply: random
+  values: [1, "true", "false"]
+- tag: law-orientation-list 
+  apply: direct
+  values: ["lawful,neutral,chaotic"]
+- tag: life-orientation-list
+  apply: direct
+  values: ["good,neutral,evil"]
+- tag: alignment
+  apply: combination_strings
+  values: [2,
+           false,
+           false, 
+           law-orientation-list,
+           life-orientation-list]
+- tag: needs-list
+  apply: direct
+  values: [physiological, safety, love/belonging, esteem, actualisation, trancendence]
+- tag: orientation-cue
+  apply: combination_strings
+  values: [3,
+           false,
+           false,
+           law-orientation-list,
+           life-orientation-list,
+           needs-list]
+- tag: self-needs
+  apply: weighted_string
+  values: [SOURCED, needs-list, default]
+- tag: society-orient
+  apply: weighted_string
+  values: [SOURCED,alignment, default]
+- tag: motivation
+  apply: dictionary_for_each
+  values: ["a:self-needs", "b:society-orient"]

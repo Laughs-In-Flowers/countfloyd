@@ -1,4 +1,4 @@
-package constructors
+package constructor
 
 import (
 	mr "math/rand"

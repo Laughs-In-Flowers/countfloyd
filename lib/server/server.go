@@ -22,6 +22,8 @@ type Action int
 
 const (
 	Unknown Action = iota
+	Ping
+	Quit
 	Populate
 	PopulateFromFiles
 	Apply
@@ -29,6 +31,10 @@ const (
 
 func StringToAction(s string) Action {
 	switch s {
+	case "ping":
+		return Ping
+	case "quit":
+		return Quit
 	case "populate":
 		return Populate
 	case "populate_from_files":
@@ -39,20 +45,39 @@ func StringToAction(s string) Action {
 	return Unknown
 }
 
+var (
+	QUIT = []byte("QUIT")
+	PING = []byte("PING")
+)
+
+func is(a, b []byte) bool {
+	if v := bytes.Compare(a, b); v == 0 {
+		return true
+	}
+	return false
+}
+
 func NewRequest(req []byte) *Request {
-	d := data.NewContainer("")
-	err := json.Unmarshal(req, &d)
-	if err != nil {
-		d.Set(data.NewItem("Error", err.Error()))
-	}
-	var a Action
-	if ac := d.Get("action"); ac != nil {
-		astr := ac.ToString()
-		a = StringToAction(astr)
-	}
-	return &Request{
-		Action: a,
-		Data:   d,
+	switch {
+	case is(req, PING):
+		return &Request{Action: Ping}
+	case is(req, QUIT):
+		return &Request{Action: Quit}
+	default:
+		d := data.NewContainer("")
+		err := json.Unmarshal(req, &d)
+		if err != nil {
+			d.Set(data.NewItem("Error", err.Error()))
+		}
+		var a Action
+		if ac := d.Get("action"); ac != nil {
+			astr := ac.ToString()
+			a = StringToAction(astr)
+		}
+		return &Request{
+			Action: a,
+			Data:   d,
+		}
 	}
 }
 
@@ -144,37 +169,26 @@ func (s *Server) Serve() {
 	}
 }
 
-var QUIT = []byte("QUIT")
-
-func isQuit(r []byte) bool {
-	if v := bytes.Compare(r, QUIT); v == 0 {
-		return true
-	}
-	return false
-}
-
 func (s *Server) process(r []byte) []byte {
-	switch {
-	case isQuit(r):
+	req := NewRequest(r)
+	d := req.Data
+	resp := &Response{}
+
+	switch req.Action {
+	case Quit:
 		s.Stop()
-	default:
-		req := NewRequest(r)
-		d := req.Data
-		resp := &Response{}
-
-		switch req.Action {
-		case PopulateFromFiles:
-			files := d.ToList("files")
-			resp.Error = s.PopulateYamlFiles(files...)
-		case Apply:
-			resp.Data = feature.DataFrom(d, s)
-		}
-
-		rb, _ := json.Marshal(&resp)
-
-		return rb
+	case Ping:
+		return NullResponse
+	case PopulateFromFiles:
+		files := d.ToList("files")
+		resp.Error = s.PopulateYamlFiles(files...)
+	case Apply:
+		resp.Data = feature.DataFrom(d, s)
 	}
-	return NullResponse
+
+	rb, _ := json.Marshal(&resp)
+
+	return rb
 }
 
 func (s *Server) Stop() {

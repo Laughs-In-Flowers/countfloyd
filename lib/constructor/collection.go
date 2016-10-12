@@ -1,4 +1,4 @@
-package constructors
+package constructor
 
 import (
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"

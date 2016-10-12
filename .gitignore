@@ -28,6 +28,7 @@ Godeps/*
 
 countfloyd
 lib/cfc/cfc
+example/example
 _back
 *.out
 *.old.*

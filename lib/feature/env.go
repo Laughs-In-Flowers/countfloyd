@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"io"
 	"io/ioutil"
-	"log"
 )
 
 type Env interface {
@@ -32,7 +31,6 @@ type env struct {
 	Raw
 	Constructors
 	Features
-	L log.Logger
 }
 
 func Empty() Env {

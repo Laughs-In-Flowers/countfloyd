@@ -13,7 +13,7 @@ import (
 	"github.com/Laughs-In-Flowers/flip"
 	"github.com/Laughs-In-Flowers/log"
 
-	_ "github.com/Laughs-In-Flowers/countfloyd/lib/constructors"
+	_ "github.com/Laughs-In-Flowers/countfloyd/lib/constructor"
 )
 
 type Options struct {

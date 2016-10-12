@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -105,7 +104,7 @@ func TopCommand() flip.Command {
 				case "text", "stdout":
 					L.SwapFormatter(log.GetFormatter("cfc_text"))
 				}
-				L.Printf("swapping to log formatter: %s", o.LogFormatter)
+				//L.Printf("swapping to log formatter: %s", o.LogFormatter)
 			}
 			return flip.ExitNo
 		},
@@ -166,7 +165,7 @@ func connection(local, socket string) (*net.UnixConn, error) {
 	return conn, nil
 }
 
-var ResponseError = Crror("Response error: %s").Out
+var ResponseError = Crror("Error getting a response from the countfloyd server: %s").Out
 
 func response(c io.Reader, timeout time.Duration) ([]byte, error) {
 	t := time.After(timeout)
@@ -284,6 +283,6 @@ var currentDir string
 
 func init() {
 	currentDir, _ = os.Getwd()
-	n := fmt.Sprintf("%s", path.Base(os.Args[0]))
+	n := path.Base(os.Args[0])
 	log.SetFormatter("cfc_text", log.MakeTextFormatter(n))
 }
