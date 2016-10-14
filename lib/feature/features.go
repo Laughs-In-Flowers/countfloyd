@@ -10,6 +10,9 @@ type Features interface {
 	GetFeature(string) Feature
 	MustGetFeature(string) Feature
 	GetGroup(string) *FeatureSet
+	List(string) []RawFeature
+	ListString(string) string
+	ListKeys(string) []string
 }
 
 type features struct {
@@ -52,4 +55,19 @@ func (fs *features) GetGroup(g string) *FeatureSet {
 		}
 	}
 	return &FeatureSet{list: ret}
+}
+
+func (fs *features) List(group string) []RawFeature {
+	g := fs.GetGroup(group)
+	return g.List()
+}
+
+func (fs *features) ListString(group string) string {
+	g := fs.GetGroup(group)
+	return g.ListString()
+}
+
+func (fs *features) ListKeys(group string) []string {
+	g := fs.GetGroup("")
+	return g.Keys()
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 type FeatureSet struct {
@@ -21,6 +22,34 @@ func (fs *FeatureSet) Key() string {
 		fs.key = fmt.Sprintf("%x", md5.Sum(v))
 	}
 	return fs.key
+}
+
+func (fs *FeatureSet) Keys() []string {
+	var ret []string
+	for _, v := range fs.list {
+		ret = append(ret, v.Tag)
+	}
+	return ret
+}
+
+func (fs *FeatureSet) List() []RawFeature {
+	return fs.list
+}
+
+func (fs *FeatureSet) ListString() string {
+	b, err := json.Marshal(&fs.list)
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
+}
+
+func (fs *FeatureSet) String() string {
+	b, err := fs.Bytes()
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 func (fs *FeatureSet) Bytes() ([]byte, error) {
@@ -46,4 +75,24 @@ func (fs *FeatureSet) base64Encode() string {
 		fs.value = base64.StdEncoding.EncodeToString(b.Bytes())
 	}
 	return fs.value
+}
+
+func DecodeFeatureSet(s string) (*FeatureSet, error) {
+	d, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	b := bytes.NewBuffer(d)
+	r, err := zlib.NewReader(b)
+	if err != nil {
+		return nil, err
+	}
+	fs := new(bytes.Buffer)
+	io.Copy(fs, r)
+	var rf []RawFeature
+	err = json.Unmarshal(fs.Bytes(), &rf)
+	if err != nil {
+		return nil, err
+	}
+	return &FeatureSet{"", "", rf}, nil
 }

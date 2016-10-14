@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
@@ -14,8 +15,44 @@ import (
 )
 
 type Request struct {
-	Action Action
-	Data   *data.Container
+	Service Service
+	Action  Action
+	Data    *data.Container
+}
+
+type Service []byte
+
+func (s Service) String() string {
+	return string(s)
+}
+
+func (s Service) Action() Action {
+	return StringToAction(s.String())
+}
+
+var (
+	NONE   = []byte("none")
+	PING   = []byte("ping")
+	STATUS = []byte("status")
+	QUERY  = []byte("query")
+	DATA   = []byte("data")
+	QUIT   = []byte("quit")
+
+	services []Service = []Service{
+		NONE, PING, STATUS, QUERY, DATA, QUIT,
+	}
+
+	directServices []Service = []Service{
+		PING, STATUS, QUIT,
+	}
+)
+
+func servicesString() string {
+	var l []string
+	for _, v := range services {
+		l = append(l, v.String())
+	}
+	return strings.Join(l, ",")
 }
 
 type Action int
@@ -23,67 +60,143 @@ type Action int
 const (
 	Unknown Action = iota
 	Ping
-	Quit
-	Populate
+	Status
+	QueryFeature
 	PopulateFromFiles
 	Apply
+	Quit
 )
+
+var actions []Action = []Action{
+	Unknown, Ping, Status, QueryFeature, PopulateFromFiles, Apply, Quit,
+}
+
+func actionsString() string {
+	var l []string
+	for _, v := range actions {
+		l = append(l, v.String())
+	}
+	return strings.Join(l, ",")
+}
 
 func StringToAction(s string) Action {
 	switch s {
 	case "ping":
 		return Ping
-	case "quit":
-		return Quit
-	case "populate":
-		return Populate
+	case "status":
+		return Status
+	case "query_feature":
+		return QueryFeature
 	case "populate_from_files":
 		return PopulateFromFiles
 	case "apply":
 		return Apply
+	case "quit":
+		return Quit
 	}
 	return Unknown
 }
 
-var (
-	QUIT = []byte("QUIT")
-	PING = []byte("PING")
-)
+func (a Action) String() string {
+	switch a {
+	case Ping:
+		return "ping"
+	case Status:
+		return "status"
+	case QueryFeature:
+		return "query_feature"
+	case PopulateFromFiles:
+		return "populate_from_files"
+	case Apply:
+		return "apply"
+	case Quit:
+		return "quit"
+	}
+	return "unknown"
+}
 
-func is(a, b []byte) bool {
-	if v := bytes.Compare(a, b); v == 0 {
-		return true
+func request(req []byte) *Request {
+	switch {
+	case directService(req):
+		return directRequest(req)
+	case featureQuery(req):
+		return featureRequest(req)
+	default:
+		return dataRequest(req)
+	}
+	return &Request{NONE, Unknown, nil}
+}
+
+func directRequest(s Service) *Request {
+	return &Request{
+		Service: s,
+		Action:  s.Action(),
+	}
+}
+
+func directService(r []byte) bool {
+	for _, v := range directServices {
+		if bytes.Compare(r, v) == 0 {
+			return true
+		}
 	}
 	return false
 }
 
-func NewRequest(req []byte) *Request {
-	switch {
-	case is(req, PING):
-		return &Request{Action: Ping}
-	case is(req, QUIT):
-		return &Request{Action: Quit}
-	default:
-		d := data.NewContainer("")
-		err := json.Unmarshal(req, &d)
-		if err != nil {
-			d.Set(data.NewItem("Error", err.Error()))
-		}
-		var a Action
-		if ac := d.Get("action"); ac != nil {
-			astr := ac.ToString()
-			a = StringToAction(astr)
-		}
-		return &Request{
-			Action: a,
-			Data:   d,
-		}
+func featureQuery(r []byte) bool {
+	return bytes.Contains(r, QUERY)
+}
+
+func featureRequest(r []byte) *Request {
+	fd := bytes.Fields(r)
+	var fss string
+	if len(fd) > 1 {
+		fs := fd[1]
+		fss = string(fs)
+	}
+	d := data.NewContainer("")
+	d.Set(data.NewItem("tag", fss))
+	return &Request{
+		Service: QUERY,
+		Action:  QueryFeature,
+		Data:    d,
+	}
+}
+
+func dataRequest(r []byte) *Request {
+	d := data.NewContainer("")
+	err := json.Unmarshal(r, &d)
+	if err != nil {
+		d.Set(data.NewItem("Error", err.Error()))
+	}
+	var a Action
+	if ac := d.Get("action"); ac != nil {
+		astr := ac.ToString()
+		a = StringToAction(astr)
+	}
+	return &Request{
+		Service: DATA,
+		Action:  a,
+		Data:    d,
 	}
 }
 
 type Response struct {
 	Error error
 	Data  *data.Container
+}
+
+func (s *Server) StatusResponse() *Response {
+	d := data.NewContainer("")
+
+	d.Set(data.NewItem("socket", s.SocketPath))
+	d.Set(data.NewItem("services", servicesString()))
+	d.Set(data.NewItem("actions", actionsString()))
+	d.Set(data.NewItem("features", strings.Join(s.ListKeys(""), ",")))
+
+	return &Response{
+		nil, d,
+	}
 }
 
 type settings struct {
@@ -172,16 +285,36 @@ func (s *Server) Serve() {
 	}
 }
 
+var NoFeatureError = Srror("No feature named %s available.").Out
+
 func (s *Server) process(r []byte) []byte {
-	req := NewRequest(r)
+	req := request(r)
 	d := req.Data
 	resp := &Response{}
 
 	switch req.Action {
-	case Quit:
-		s.Stop()
 	case Ping:
 		return NullResponse
+	case Status:
+		resp = s.StatusResponse()
+	case Quit:
+		s.Stop()
+	case QueryFeature:
+		tag := d.ToString("tag")
+		f := s.GetFeature(tag)
+		if f == nil {
+			resp.Error = NoFeatureError(tag)
+		}
+		if f != nil {
+			si := data.NewItem("set", "")
+			si.SetList(f.Group()...)
+			d.Set(si)
+			d.Set(data.NewItem("apply", f.From()))
+			vi := data.NewItem("values", "")
+			vi.SetList(f.Values()...)
+			d.Set(vi)
+			resp.Data = d
+		}
 	case PopulateFromFiles:
 		files := d.ToList("files")
 		resp.Error = s.PopulateYamlFiles(files...)

@@ -22,7 +22,7 @@ func init() {
 	C = flip.BaseWithVersion(versionPackage, versionTag, versionHash, versionDate)
 	L = log.New(os.Stdout, log.LInfo, log.DefaultNullFormatter())
 	flip.RegisterGroup("top", -1, TopCommand())
-	flip.RegisterGroup("control", 1, StartCommand(), StopCommand())
+	flip.RegisterGroup("control", 1, StartCommand(), StopCommand(), StatusCommand(), QueryCommand())
 	flip.RegisterGroup("action", 2, PopulateCommand(), ApplyCommand())
 }
 

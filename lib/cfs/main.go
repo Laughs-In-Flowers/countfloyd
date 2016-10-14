@@ -50,6 +50,7 @@ func (o *Options) Files() []string {
 func topFlags(o *Options) *flip.FlagSet {
 	fs := flip.NewFlagSet("", flip.ContinueOnError)
 	fs.StringVar(&o.LogFormatter, "logFormatter", o.LogFormatter, "Sets the environment logger formatter.")
+	fs.StringVar(&o.Socket, "socket", "", "Set the server socket path.")
 	fs.StringVar(&o.dir, "populateDir", o.dir, "Populate the feature env from files in the provided directory.")
 	fs.StringVar(&o.files, "populateFiles", o.files, "Populate the feature env from the provided files.")
 	return fs
@@ -64,6 +65,11 @@ var txx []tex = []tex{
 			case "text", "stdout":
 				L.SwapFormatter(log.GetFormatter("cfs_text"))
 			}
+		}
+	},
+	func(o *Options) {
+		if o.Socket != "" {
+			S.Add(server.SetSocketPath(o.Socket))
 		}
 	},
 	func(o *Options) {
