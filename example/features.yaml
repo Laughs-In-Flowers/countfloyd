@@ -20,7 +20,12 @@
            life-orientation-list]
 - tag: needs-list
   apply: direct
-  values: [physiological, safety, love/belonging, esteem, actualisation, trancendence]
+  values: [physiological,
+           safety,
+           love/belonging,
+           esteem,
+           actualisation,
+           trancendence]
 - tag: orientation-cue
   apply: combination_strings
   values: [3,
@@ -31,10 +36,15 @@
            needs-list]
 - tag: self-needs
   apply: weighted_string
-  values: [SOURCED, needs-list, default]
+  values: [SOURCED,
+           needs-list,
+           normalize]
 - tag: society-orient
   apply: weighted_string
-  values: [SOURCED,alignment, default]
+  values: [SOURCED,
+           alignment,
+           normalize]
 - tag: motivation
   apply: dictionary_for_each
-  values: ["a:self-needs", "b:society-orient"]
+  values: ["a:self-needs",
+           "b:society-orient"]

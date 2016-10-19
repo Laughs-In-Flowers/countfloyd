@@ -77,7 +77,7 @@ func (fs *FeatureSet) base64Encode() string {
 	return fs.value
 }
 
-func DecodeFeatureSet(s string) (*FeatureSet, error) {
+func DecodeFeatureSetValue(s string) (*FeatureSet, error) {
 	d, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return nil, err

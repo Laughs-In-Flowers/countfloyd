@@ -192,7 +192,9 @@ type Response struct {
 	Data  *data.Container
 }
 
-var EmptyResponse Response = Response{nil, data.NewContainer("")}
+func EmptyResponse() *Response {
+	return &Response{nil, data.NewContainer("")}
+}
 
 func (s *Server) StatusResponse() *Response {
 	d := data.NewContainer("")
@@ -384,6 +386,7 @@ func (s *Server) process(r []byte) []byte {
 
 func (s *Server) Stop() {
 	s.Print("exiting")
+	//s.stopListening()
 	s.Close()
 	os.Remove(s.SocketPath)
 	os.Exit(0)
