@@ -11,6 +11,7 @@ import (
 
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
+	"github.com/Laughs-In-Flowers/ifriit/lib/file"
 	"github.com/Laughs-In-Flowers/log"
 )
 
@@ -64,6 +65,7 @@ const (
 	QueryFeature
 	PopulateFromFiles
 	Apply
+	ApplyToFile
 	Quit
 )
 
@@ -91,6 +93,8 @@ func StringToAction(s string) Action {
 		return PopulateFromFiles
 	case "apply":
 		return Apply
+	case "apply_to_file":
+		return ApplyToFile
 	case "quit":
 		return Quit
 	}
@@ -109,6 +113,8 @@ func (a Action) String() string {
 		return "populate_from_files"
 	case Apply:
 		return "apply"
+	case ApplyToFile:
+		return "apply_to_file"
 	case Quit:
 		return "quit"
 	}
@@ -185,6 +191,8 @@ type Response struct {
 	Error error
 	Data  *data.Container
 }
+
+var EmptyResponse Response = Response{nil, data.NewContainer("")}
 
 func (s *Server) StatusResponse() *Response {
 	d := data.NewContainer("")
@@ -287,6 +295,25 @@ func (s *Server) Serve() {
 
 var NoFeatureError = Srror("No feature named %s available.").Out
 
+func fileData(path string) (*os.File, []byte, error) {
+	fl, err := file.Open(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	var n int64
+	if fi, err := fl.Stat(); err == nil {
+		if size := fi.Size(); size < 1e9 {
+			n = size
+		}
+	}
+	b := make([]byte, n)
+	_, err = fl.Read(b)
+	if err != nil {
+		return nil, nil, err
+	}
+	return fl, b, nil
+}
+
 func (s *Server) process(r []byte) []byte {
 	req := request(r)
 	d := req.Data
@@ -320,6 +347,34 @@ func (s *Server) process(r []byte) []byte {
 		resp.Error = s.PopulateYamlFiles(files...)
 	case Apply:
 		resp.Data = feature.DataFrom(d, s)
+	case ApplyToFile:
+		path := d.ToString("file")
+
+		fl, b, err := fileData(path)
+		if err != nil {
+			resp.Error = err
+		}
+
+		err = d.UnmarshalJSON(b)
+		if err != nil {
+			resp.Error = err
+		}
+
+		existing := d.Clone("file", "action")
+
+		resp.Data = feature.DataFrom(existing, s)
+
+		wo := data.Merge(existing, resp.Data)
+
+		var afb []byte
+		afb, err = wo.MarshalJSON()
+		if err != nil {
+			resp.Error = err
+		}
+
+		fl.Truncate(0)
+		fl.WriteAt(afb, 0)
+		fl.Sync()
 	}
 
 	rb, _ := json.Marshal(&resp)

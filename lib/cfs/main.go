@@ -64,6 +64,8 @@ var txx []tex = []tex{
 			switch o.LogFormatter {
 			case "text", "stdout":
 				L.SwapFormatter(log.GetFormatter("cfs_text"))
+			default:
+				L.SwapFormatter(log.GetFormatter(o.LogFormatter))
 			}
 		}
 	},

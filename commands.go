@@ -35,6 +35,8 @@ type Options struct {
 	dir, files            string
 	MetaNumber            int
 	MetaFeatures          string
+	applyToFile           bool
+	applyToFileName       string
 	QueryFeature          string
 }
 
@@ -48,6 +50,8 @@ func NewOptions() *Options {
 		"",
 		"",
 		0,
+		"",
+		false,
 		"",
 		"",
 	}
@@ -121,6 +125,8 @@ func TopCommand() flip.Command {
 				switch o.LogFormatter {
 				case "text", "stdout":
 					L.SwapFormatter(log.GetFormatter("countfloyd_text"))
+				default:
+					L.SwapFormatter(log.GetFormatter(o.LogFormatter))
 				}
 			}
 			current = &sonnect{o.LogFormatter, o.LocalPath, o.SocketPath, o.Timeout}
@@ -336,6 +342,8 @@ func applyFlags(o *Options) *flip.FlagSet {
 	fs := flip.NewFlagSet("apply", flip.ContinueOnError)
 	fs.IntVar(&o.MetaNumber, "number", 0, "A number value for meta.number")
 	fs.StringVar(&o.MetaFeatures, "features", "", "A comma delimited list of features to apply.")
+	fs.BoolVar(&o.applyToFile, "file", false, "Apply features to a file from metadat in that file.")
+	fs.StringVar(&o.applyToFileName, "name", "", "The file name to read for meta data, as well as write out applied feature information.")
 	socketFlags(o, fs)
 	return fs
 }
@@ -350,9 +358,15 @@ func ApplyCommand() flip.Command {
 		2,
 		func(c context.Context, a []string) flip.ExitStatus {
 			d := data.NewContainer("")
-			d.Set(data.NewItem("action", "apply"))
-			d.Set(data.NewItem("meta.number", strconv.Itoa(o.MetaNumber)))
-			d.Set(data.NewItem("meta.features", o.MetaFeatures))
+			switch {
+			case o.applyToFile:
+				d.Set(data.NewItem("action", "apply_to_file"))
+				d.Set(data.NewItem("file", o.applyToFileName))
+			default:
+				d.Set(data.NewItem("action", "apply"))
+				d.Set(data.NewItem("meta.number", strconv.Itoa(o.MetaNumber)))
+				d.Set(data.NewItem("meta.features", o.MetaFeatures))
+			}
 			return connectData(current, d)
 		},
 		fs,
