@@ -21,6 +21,6 @@ func DataFrom(m *data.Container, e Env) *data.Container {
 	d := NewData(n.ToInt())
 	a := m.ToList("meta.features")
 	f := &Data{d}
-	e.Apply(a, f, 1)
+	e.Apply(a, f)
 	return f.Container
 }

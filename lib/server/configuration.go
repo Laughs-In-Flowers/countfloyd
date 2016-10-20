@@ -1,7 +1,6 @@
 package server
 
 import (
-	"net"
 	"os"
 	"sort"
 
@@ -144,14 +143,13 @@ func sSocketPath(s *Server) error {
 }
 
 func sListener(s *Server) error {
-	if s.Listener == nil {
-		l, err := net.ListenUnix("unix", &net.UnixAddr{s.SocketPath, "unix"})
-		if err != nil {
-			return err
-		}
-		st := make(chan struct{}, 0)
-		s.Listener = &Listener{
-			l, s.process, st,
+	if len(s.Listening) == 0 {
+		for i := 0; i <= s.Listeners; i++ {
+			lr := NewListener(s.SocketPath, s.process)
+			if lr.Error != nil {
+				return lr.Error
+			}
+			s.Listening = append(s.Listening, lr)
 		}
 	}
 	return nil

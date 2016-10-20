@@ -40,7 +40,7 @@ var (
 	QUIT   = []byte("quit")
 
 	services []Service = []Service{
-		NONE, PING, STATUS, QUERY, DATA, QUIT,
+		PING, STATUS, QUERY, DATA, QUIT,
 	}
 
 	directServices []Service = []Service{
@@ -70,7 +70,7 @@ const (
 )
 
 var actions []Action = []Action{
-	Unknown, Ping, Status, QueryFeature, PopulateFromFiles, Apply, Quit,
+	Ping, Status, QueryFeature, PopulateFromFiles, Apply, ApplyToFile, Quit,
 }
 
 func actionsString() string {
@@ -211,11 +211,12 @@ func (s *Server) StatusResponse() *Response {
 
 type settings struct {
 	SocketPath string
+	Listeners  int
 }
 
 func newSettings() *settings {
 	return &settings{
-		"/tmp/countfloyd_0_0-socket",
+		"/tmp/countfloyd_0_0-socket", 10,
 	}
 }
 
@@ -224,14 +225,37 @@ type Server struct {
 	*settings
 	log.Logger
 	feature.Env
-	*Listener
+	Listening []*Listener
 	interrupt chan os.Signal
 }
 
+type ProcessFunc func([]byte) []byte
+
 type Listener struct {
+	Error error
 	*net.UnixListener
-	process func([]byte) []byte
+	process ProcessFunc
 	stop    chan struct{}
+}
+
+func NewListener(socket string, fn ProcessFunc) *Listener {
+	l, err := net.ListenUnix("unix", &net.UnixAddr{socket, "unix"})
+	st := make(chan struct{}, 0)
+	return &Listener{
+		err, l, fn, st,
+	}
+}
+
+func heard(c *net.UnixConn, l func([]byte) []byte) {
+	var buf [1024]byte
+	n, err := c.Read(buf[:])
+	if err != nil {
+		panic(err)
+	}
+	req := bytes.Trim(buf[:n], " ")
+	resp := l(req)
+	c.Write(resp)
+	c.Close()
 }
 
 func (l *Listener) listen() {
@@ -245,26 +269,20 @@ LISTEN:
 			if err != nil {
 				panic(err)
 			}
-			var buf [1024]byte
-			n, err := conn.Read(buf[:])
-			if err != nil {
-				panic(err)
-			}
-			req := bytes.Trim(buf[:n], " ")
-			resp := l.process(req)
-			conn.Write(resp)
-			conn.Close()
+			go heard(conn, l.process)
 		}
 	}
 }
 
-func (l *Listener) stopListening() {
+func (l *Listener) quit() {
+	l.Close()
 	l.stop <- struct{}{}
 }
 
 func New(c ...Config) *Server {
 	s := &Server{
 		settings:  &settings{},
+		Listening: make([]*Listener, 0),
 		interrupt: make(chan os.Signal, 0),
 	}
 
@@ -285,7 +303,9 @@ func New(c ...Config) *Server {
 func (s *Server) Serve() {
 	s.Print("serving....")
 
-	go s.listen()
+	for _, v := range s.Listening {
+		go v.listen()
+	}
 
 	for {
 		select {
@@ -316,6 +336,11 @@ func fileData(path string) (*os.File, []byte, error) {
 	return fl, b, nil
 }
 
+var (
+	NoServiceError     = Srror("no service available")
+	UnknownActionError = Srror("unknown action")
+)
+
 func (s *Server) process(r []byte) []byte {
 	req := request(r)
 	d := req.Data
@@ -327,7 +352,7 @@ func (s *Server) process(r []byte) []byte {
 	case Status:
 		resp = s.StatusResponse()
 	case Quit:
-		s.Stop()
+		s.Quit()
 	case QueryFeature:
 		tag := d.ToString("tag")
 		f := s.GetFeature(tag)
@@ -377,6 +402,8 @@ func (s *Server) process(r []byte) []byte {
 		fl.Truncate(0)
 		fl.WriteAt(afb, 0)
 		fl.Sync()
+	default:
+		resp.Error = UnknownActionError
 	}
 
 	rb, _ := json.Marshal(&resp)
@@ -384,9 +411,14 @@ func (s *Server) process(r []byte) []byte {
 	return rb
 }
 
-func (s *Server) Stop() {
+func (s *Server) Close() {
+	for _, l := range s.Listening {
+		l.quit()
+	}
+}
+
+func (s *Server) Quit() {
 	s.Print("exiting")
-	//s.stopListening()
 	s.Close()
 	os.Remove(s.SocketPath)
 	os.Exit(0)
@@ -396,7 +428,7 @@ func (s *Server) SignalHandler(sig os.Signal) {
 	s.Printf("received signal %v", sig)
 	switch sig {
 	case os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL:
-		s.Stop()
+		s.Quit()
 	}
 }
 
