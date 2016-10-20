@@ -1,6 +1,6 @@
 # Count Floyd
 
-![very scary][cf]
-[cf]: https://github.com/Laughs-In-Flowers/countfloyd/blob/master/cf.png 
+A local feature server.
 
-A feature server.
+![very scary][cf]
+[cf]: https://github.com/Laughs-In-Flowers/countfloyd/blob/resources/image/cf.png 
