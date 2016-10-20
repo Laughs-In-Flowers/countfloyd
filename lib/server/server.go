@@ -216,7 +216,7 @@ type settings struct {
 
 func newSettings() *settings {
 	return &settings{
-		"/tmp/countfloyd_0_0-socket", 10,
+		"/tmp/countfloyd_0_0-socket", 5,
 	}
 }
 
@@ -338,7 +338,7 @@ func fileData(path string) (*os.File, []byte, error) {
 
 var (
 	NoServiceError     = Srror("no service available")
-	UnknownActionError = Srror("unknown action")
+	UnknownActionError = Srror("action is: unknown")
 )
 
 func (s *Server) process(r []byte) []byte {

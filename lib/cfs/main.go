@@ -19,6 +19,7 @@ import (
 type Options struct {
 	LogFormatter string
 	Socket       string
+	Listeners    int
 	dir, files   string
 	Run          bool
 }
@@ -50,7 +51,8 @@ func (o *Options) Files() []string {
 func topFlags(o *Options) *flip.FlagSet {
 	fs := flip.NewFlagSet("", flip.ContinueOnError)
 	fs.StringVar(&o.LogFormatter, "logFormatter", o.LogFormatter, "Sets the environment logger formatter.")
-	fs.StringVar(&o.Socket, "socket", "", "Set the server socket path.")
+	fs.StringVar(&o.Socket, "socket", o.Socket, "Set the server socket path.")
+	fs.IntVar(&o.Listeners, "listeners", o.Listeners, "Set the number of listeners at the server socket.")
 	fs.StringVar(&o.dir, "populateDir", o.dir, "Populate the feature env from files in the provided directory.")
 	fs.StringVar(&o.files, "populateFiles", o.files, "Populate the feature env from the provided files.")
 	return fs
@@ -72,6 +74,11 @@ var txx []tex = []tex{
 	func(o *Options) {
 		if o.Socket != "" {
 			S.Add(server.SetSocketPath(o.Socket))
+		}
+	},
+	func(o *Options) {
+		if o.Listeners != 0 {
+			S.Add(server.Listeners(o.Listeners))
 		}
 	},
 	func(o *Options) {

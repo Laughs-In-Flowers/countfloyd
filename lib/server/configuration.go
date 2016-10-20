@@ -155,6 +155,13 @@ func sListener(s *Server) error {
 	return nil
 }
 
+func Listeners(n int) Config {
+	return DefaultConfig(func(s *Server) error {
+		s.Listeners = n
+		return nil
+	})
+}
+
 func SetFeatureEnvironment(f feature.Env) Config {
 	return DefaultConfig(func(s *Server) error {
 		s.Env = f
