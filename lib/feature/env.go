@@ -1,12 +1,10 @@
 package feature
 
 import (
-	"bytes"
-	"compress/zlib"
-	"encoding/base64"
-	"io"
 	"io/ioutil"
 	"sync"
+
+	"github.com/Laughs-In-Flowers/data"
 )
 
 type Env interface {
@@ -18,15 +16,15 @@ type Env interface {
 }
 
 type Applicator interface {
-	Apply([]string, *Data, ...MapFn) error
-	ApplyFor([]string, *Data, int, ...MapFn) error
+	Apply([]string, *data.Container, ...MapFn) error
+	ApplyFor([]string, *data.Container, int, ...MapFn) error
 }
 
 type Populator interface {
 	Populate([]byte) error
 	PopulateConstructors(...Constructor) error
 	PopulateYamlFiles(...string) error
-	PopulateSetValues(...string) error
+	PopulateGroup(...string) error
 }
 
 type env struct {
@@ -43,15 +41,22 @@ func Empty() Env {
 	return e
 }
 
-func New(raw []byte, cs ...Constructor) Env {
+func New(raw []byte, cs ...Constructor) (Env, error) {
 	e := Empty()
-	e.Populate(raw)
-	e.PopulateConstructors(cs...)
-	return e
+	if err := e.PopulateConstructors(cs...); err != nil {
+		return nil, err
+	}
+	if err := e.Populate(raw); err != nil {
+		return nil, err
+	}
+	return e, nil
 }
 
 func (e *env) Populate(raw []byte) error {
-	e.queue(raw)
+	err := e.queue(raw)
+	if err != nil {
+		return err
+	}
 	e.dequeue()
 	return nil
 }
@@ -76,20 +81,14 @@ func (e *env) PopulateYamlFiles(files ...string) error {
 	return nil
 }
 
-func (e *env) PopulateSetValues(sv ...string) error {
+func (e *env) PopulateGroup(sv ...string) error {
 	for _, s := range sv {
-		d, err := base64.StdEncoding.DecodeString(s)
+		set, err := DecodeFeatureGroup(s)
+		b, err := set.Bytes()
 		if err != nil {
 			return err
 		}
-		b := bytes.NewBuffer(d)
-		r, err := zlib.NewReader(b)
-		if err != nil {
-			return err
-		}
-		fs := new(bytes.Buffer)
-		io.Copy(fs, r)
-		err = e.Populate(fs.Bytes())
+		err = e.Populate(b)
 		if err != nil {
 			return err
 		}
@@ -97,13 +96,13 @@ func (e *env) PopulateSetValues(sv ...string) error {
 	return nil
 }
 
-func (e *env) Apply(list []string, to *Data, with ...MapFn) error {
+func (e *env) Apply(list []string, to *data.Container, with ...MapFn) error {
 	return e.ApplyFor(list, to, 1, with...)
 }
 
-func fill(e Env, list []string, to *Data) {
+func fill(e Env, list []string, to *data.Container) {
 	var wg sync.WaitGroup
-	ff := func(s string, to *Data) {
+	ff := func(s string, to *data.Container) {
 		if ft := e.GetFeature(s); ft != nil {
 			ft.Map(to)
 		}
@@ -116,7 +115,7 @@ func fill(e Env, list []string, to *Data) {
 	wg.Wait()
 }
 
-func (e *env) ApplyFor(list []string, to *Data, pass int, with ...MapFn) error {
+func (e *env) ApplyFor(list []string, to *data.Container, pass int, with ...MapFn) error {
 	for i := 1; i <= pass; i++ {
 		fill(e, list, to)
 		for _, fn := range with {

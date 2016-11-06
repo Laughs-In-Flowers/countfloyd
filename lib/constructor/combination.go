@@ -166,13 +166,14 @@ func csArgParser(e feature.Env, args []string) (Replacer, int, bool, bool, int) 
 	var all []string
 	for n, v := range from {
 		f := e.MustGetFeature(v)
-		i := f.Emit()
-		l := i.ToList()
-		var nl []string
-		for _, ll := range l {
-			nl = append(nl, fmt.Sprintf("%s:%d", ll, n))
+		if i, err := f.EmitStrings(); err == nil {
+			l := i.ToStrings()
+			var nl []string
+			for _, ll := range l {
+				nl = append(nl, fmt.Sprintf("%s:%d", ll, n))
+			}
+			all = append(all, nl...)
 		}
-		all = append(all, nl...)
 	}
 	rp := StringReplacer(all)
 

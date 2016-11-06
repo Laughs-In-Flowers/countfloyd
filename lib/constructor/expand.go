@@ -1,11 +1,6 @@
 package constructor
 
-import (
-	"sort"
-	"strconv"
-
-	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
-)
+import "github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 
 var ExpandInts feature.Constructor
 
@@ -18,24 +13,14 @@ func eiArgParser(e feature.Env, args []string) []string {
 	args = argsMustBeLength(e, args, 2)
 	var source feature.Feature
 	source = e.MustGetFeature(args[0])
-	i := source.Emit()
-	str := i.ToList()
-	switch args[1] {
-	case "mirror":
-		var nums []int
-		var nstr []string
-		for _, v := range str {
-			num, err := strconv.Atoi(v)
-			if err == nil {
-				nums = append(nums, num)
-				nums = append(nums, num-(num*2))
-			}
+	if i, err := source.EmitStrings(); err == nil {
+		ss := i.ToStrings()
+		switch args[1] {
+		case "range":
+			return listExpand(ss)
+		case "mirror":
+			return listMirror(ss)
 		}
-		sort.Ints(nums)
-		for _, v := range nums {
-			nstr = append(nstr, strconv.Itoa(v))
-		}
-		return nstr
 	}
 	return []string{"nothing to expand"}
 }

@@ -9,7 +9,7 @@ import (
 
 type Raw interface {
 	sort.Interface
-	queue([]byte)
+	queue([]byte) error
 	dequeue()
 }
 
@@ -27,15 +27,6 @@ func (r *RawFeature) MustGetValues() []string {
 		log.Fatalf("zero length list for %s", r.Tag)
 	}
 	return list
-}
-
-func NewRawFeature(set []string, tag string, values []string, c Constructor) *RawFeature {
-	return &RawFeature{
-		Set:         set,
-		Tag:         tag,
-		Values:      values,
-		constructor: c,
-	}
 }
 
 type raw struct {
@@ -62,15 +53,24 @@ func (r *raw) Less(i, j int) bool {
 	return r.has[i].constructor.Order() < r.has[j].constructor.Order()
 }
 
-func (r *raw) queue(in []byte) {
+var NoConstructorError = Frror("Constructor with tag %s does not exist.").Out
+
+func (r *raw) queue(in []byte) error {
 	var rfs []*RawFeature
-	yaml.Unmarshal(in, &rfs)
-	for _, rf := range rfs {
-		if c, exists := r.e.GetConstructor(rf.Apply); exists {
-			rf.constructor = c
-			r.has = append(r.has, rf)
-		}
+	err := yaml.Unmarshal(in, &rfs)
+	if err != nil {
+		return err
 	}
+	for _, rf := range rfs {
+		var c Constructor
+		var exists bool
+		if c, exists = r.e.GetConstructor(rf.Apply); !exists {
+			return NoConstructorError(rf.Apply)
+		}
+		rf.constructor = c
+		r.has = append(r.has, rf)
+	}
+	return nil
 }
 
 func (r *raw) dequeue() {

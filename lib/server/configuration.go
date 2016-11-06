@@ -184,3 +184,12 @@ func SetPopulateFiles(files ...string) Config {
 		return s.PopulateYamlFiles(files...)
 	})
 }
+
+func SetHandler(hs ...*Handler) Config {
+	return NewConfig(2000, func(s *Server) error {
+		for _, h := range hs {
+			s.SetHandle(h)
+		}
+		return nil
+	})
+}

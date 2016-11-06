@@ -1,14 +1,12 @@
 package constructor
 
 import (
-	"strings"
-
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
 )
 
 var (
-	Direct, DirectNull feature.Constructor
+	Direct, DirectNull, DirectShuffle feature.Constructor
 )
 
 func direct(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
@@ -16,13 +14,34 @@ func direct(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer,
 	return directFromList("DIRECT", r.Set, tag, list, list, e)
 }
 
+type listModifier func([]string) []string
+
 func directNull(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.MustGetValues()
 	f := e.MustGetFeature(list[0])
-	i := f.Emit()
-	vals := i.ToList()
-	vals = append(vals, "NULL")
-	return directFromList("DIRECT-NULL", r.Set, tag, r.Values, vals, e)
+	if i, err := f.EmitStrings(); err == nil {
+		vals := i.ToStrings()
+		mfn := func(ss []string) []string {
+			ss = append(ss, "NULL")
+			return ss
+		}
+		return directFromList("DIRECT-NULL", r.Set, tag, r.Values, vals, e, mfn)
+	}
+	return nil, nil, nil
+}
+
+func directShuffle(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+	list := r.MustGetValues()
+	f := e.MustGetFeature(list[0])
+	if i, err := f.EmitStrings(); err == nil {
+		vals := i.ToStrings()
+		mfn := func(ss []string) []string {
+			shuffleStrings(ss)
+			return ss
+		}
+		return directFromList("DIRECT-SHUFFLE", r.Set, tag, r.Values, vals, e, mfn)
+	}
+	return nil, nil, nil
 }
 
 func directFromList(
@@ -32,21 +51,19 @@ func directFromList(
 	raw []string,
 	values []string,
 	e feature.Env,
+	modifiers ...listModifier,
 ) (feature.Informer, feature.Emitter, feature.Mapper) {
-	var ret string
-	if len(values) == 1 {
-		ret = values[0]
-	} else {
-		ret = strings.Join(values, ",")
+	ef := func() data.Item {
+		nv := values
+		if len(modifiers) > 0 {
+			for _, m := range modifiers {
+				nv = m(nv)
+			}
+		}
+		return data.NewStringsItem(tag, nv...)
 	}
 
-	ef := func() *data.Item {
-		i := data.NewItem(tag, "")
-		i.SetString(ret)
-		return i
-	}
-
-	mf := func(d *feature.Data) {
+	mf := func(d *data.Container) {
 		d.Set(ef())
 	}
 
@@ -56,5 +73,6 @@ func directFromList(
 func init() {
 	Direct = feature.NewConstructor("DIRECT", 1, direct)
 	DirectNull = feature.NewConstructor("DIRECT_NULL", 2, directNull)
-	feature.SetConstructor(Direct, DirectNull)
+	DirectShuffle = feature.NewConstructor("DIRECT_SHUFFLE", 3, directShuffle)
+	feature.SetConstructor(Direct, DirectNull, DirectShuffle)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -43,29 +42,33 @@ func main() {
 	query.Run()
 	qr := server.EmptyResponse()
 	json.Unmarshal(qb.Bytes(), qr)
-	d := qr.Data
-	fmt.Println("---------------------")
-	fmt.Println("QUERY:SOCIETY-ORIENT")
-	fmt.Println(d.ToString("apply"))
-	v := d.Get("values")
-	vs := strings.Split(v.ToString(), ",")
-	for _, vi := range vs {
-		fmt.Println(vi)
-	}
-	fmt.Println("---------------------")
-	for i := 0; i <= 100; i += 1 {
-		b := new(bytes.Buffer)
-		q := exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "apply", "-number", fmt.Sprintf("%d", i), "-features", "motivation")
-		q.Stdout = b
-		q.Run()
-		r := server.EmptyResponse()
-		err := json.Unmarshal(b.Bytes(), r)
-		if err != nil {
-			log.Printf("%s", err.Error())
-		}
-		fmt.Println(r.Data.String())
+	if qr.Error == nil && qr.Data != nil {
+		d := qr.Data
 		fmt.Println("---------------------")
-		b.Reset()
+		fmt.Println("QUERY:SOCIETY-ORIENT")
+		fmt.Println(d.ToString("apply"))
+		v := d.ToString("values")
+		vs := strings.Split(v, ",")
+		for _, vi := range vs {
+			fmt.Println(vi)
+		}
+		fmt.Println("---------------------")
+	} else {
+		fmt.Println(qr.Error.Error())
 	}
+	//for i := 0; i <= 100; i += 1 {
+	//	b := new(bytes.Buffer)
+	//	q := exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "apply", "-number", fmt.Sprintf("%d", i), "-features", "motivation")
+	//	q.Stdout = b
+	//	q.Run()
+	//	r := server.EmptyResponse()
+	//	err := json.Unmarshal(b.Bytes(), r)
+	//	if err != nil {
+	//		log.Printf("%s", err.Error())
+	//	}
+	//	fmt.Println(r.Data)
+	//	fmt.Println("---------------------")
+	//	b.Reset()
+	//}
 	stop.Run()
 }

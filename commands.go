@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -143,14 +142,20 @@ var (
 	versionDate    string = "No Date"
 )
 
-func connectByte(s *sonnect, b []byte) flip.ExitStatus {
+func connect(s *sonnect, service, action string, d *data.Container) flip.ExitStatus {
+	req := cf.NewRequest(
+		cf.ByteService(service),
+		cf.ByteAction(action),
+		d,
+	)
+
 	conn, err := connection(s.local, s.socket)
 	defer cleanup(conn, s.local)
 	if err != nil {
 		return onError(err)
 	}
 
-	_, err = conn.Write(b)
+	_, err = conn.Write(req.ToByte())
 	if err != nil {
 		return onError(err)
 	}
@@ -163,16 +168,40 @@ func connectByte(s *sonnect, b []byte) flip.ExitStatus {
 	L.Print(resp)
 
 	return flip.ExitSuccess
+
+	return flip.ExitSuccess
 }
 
-func connectData(s *sonnect, d *data.Container) flip.ExitStatus {
-	b, err := d.MarshalJSON()
-	if err != nil {
-		return onError(err)
-	}
+//func connectByte(s *sonnect, b []byte) flip.ExitStatus {
+//	conn, err := connection(s.local, s.socket)
+//	defer cleanup(conn, s.local)
+//	if err != nil {
+//		return onError(err)
+//	}
+//
+//	_, err = conn.Write(b)
+//	if err != nil {
+//		return onError(err)
+//	}
+//
+//	resp, err := response(conn, s.timeout)
+//	if err != nil {
+//		return onError(err)
+//	}
+//
+//	L.Print(resp)
+//
+//	return flip.ExitSuccess
+//}
 
-	return connectByte(s, b)
-}
+//func connectData(s *sonnect, d *data.Container) flip.ExitStatus {
+//	b, err := d.MarshalJSON()
+//	if err != nil {
+//		return onError(err)
+//	}
+//
+//	return connectByte(s, b)
+//}
 
 func onError(err error) flip.ExitStatus {
 	L.Printf(err.Error())
@@ -259,7 +288,7 @@ func StopCommand() flip.Command {
 		"stop a countfloyd server",
 		2,
 		func(c context.Context, a []string) flip.ExitStatus {
-			return connectByte(current, cf.QUIT)
+			return connect(current, "system", "quit", nil)
 		},
 		fs,
 	)
@@ -279,7 +308,7 @@ func StatusCommand() flip.Command {
 		"the status of a countfloyd server",
 		3,
 		func(c context.Context, a []string) flip.ExitStatus {
-			return connectByte(current, cf.STATUS)
+			return connect(current, "query", "status", nil)
 		},
 		fs,
 	)
@@ -300,9 +329,9 @@ func QueryCommand() flip.Command {
 		"query a countfloyd server for feature information",
 		4,
 		func(c context.Context, a []string) flip.ExitStatus {
-			s := [][]byte{cf.QUERY, []byte(o.QueryFeature)}
-			f := bytes.Join(s, []byte(" "))
-			return connectByte(current, f)
+			d := data.New("")
+			d.Set(data.NewStringItem("query_feature", o.QueryFeature))
+			return connect(current, "query", "feature", d)
 		},
 		fs,
 	)
@@ -320,16 +349,15 @@ func PopulateCommand() flip.Command {
 	return flip.NewCommand(
 		"",
 		"populate",
-		"populate a countfloyd server with features and/or constructors",
+		"populate a countfloyd server with features from provided files.",
 		1,
 		func(c context.Context, a []string) flip.ExitStatus {
 			o.PopulateAction()
 			switch {
 			case o.fromFiles:
-				d := data.NewContainer("")
-				d.Set(data.NewItem("action", "populate_from_files"))
-				d.Set(data.NewItem("files", o.FilesString()))
-				return connectData(current, d)
+				d := data.New("")
+				d.Set(data.NewStringsItem("files", o.Files()...))
+				return connect(current, "data", "populate_from_files", d)
 			}
 			return flip.ExitUsageError
 		},
@@ -342,8 +370,8 @@ func applyFlags(o *Options) *flip.FlagSet {
 	fs := flip.NewFlagSet("apply", flip.ContinueOnError)
 	fs.IntVar(&o.MetaNumber, "number", 0, "A number value for meta.number")
 	fs.StringVar(&o.MetaFeatures, "features", "", "A comma delimited list of features to apply.")
-	fs.BoolVar(&o.applyToFile, "file", false, "Apply features to a file from metadat in that file.")
-	fs.StringVar(&o.applyToFileName, "name", "", "The file name to read for meta data, as well as write out applied feature information.")
+	fs.BoolVar(&o.applyToFile, "file", false, "Apply features to a file from data in that file.")
+	fs.StringVar(&o.applyToFileName, "name", "", "The file name to read for data, as well as write out applied feature information.")
 	socketFlags(o, fs)
 	return fs
 }
@@ -357,17 +385,18 @@ func ApplyCommand() flip.Command {
 		"apply a set of features",
 		2,
 		func(c context.Context, a []string) flip.ExitStatus {
-			d := data.NewContainer("")
+			d := data.New("")
+			var action string
 			switch {
 			case o.applyToFile:
-				d.Set(data.NewItem("action", "apply_to_file"))
-				d.Set(data.NewItem("file", o.applyToFileName))
+				d.Set(data.NewStringItem("file", o.applyToFileName))
+				action = "apply_to_file"
 			default:
-				d.Set(data.NewItem("action", "apply"))
-				d.Set(data.NewItem("meta.number", strconv.Itoa(o.MetaNumber)))
-				d.Set(data.NewItem("meta.features", o.MetaFeatures))
+				d.Set(data.NewIntItem("meta.number", o.MetaNumber))
+				d.Set(data.NewStringItem("meta.features", o.MetaFeatures))
+				action = "apply"
 			}
-			return connectData(current, d)
+			return connect(current, "data", action, d)
 		},
 		fs,
 	)
