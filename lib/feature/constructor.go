@@ -3,7 +3,7 @@ package feature
 import "strings"
 
 type Constructor interface {
-	Tag() string
+	Tagger
 	Order() int
 	Construct(string, *RawFeature, Env) Feature
 }
@@ -52,8 +52,8 @@ func NewConstructors() Constructors {
 	return &constructors{make(map[string]Constructor)}
 }
 
-func SetConstructor(cns ...Constructor) {
-	internal.SetConstructor(cns...)
+func SetConstructor(cns ...Constructor) error {
+	return internal.SetConstructor(cns...)
 }
 
 var ConstructorExistsError = Frror("constructore %s exists").Out

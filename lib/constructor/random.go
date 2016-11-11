@@ -8,8 +8,6 @@ import (
 	"github.com/Laughs-In-Flowers/data"
 )
 
-var SimpleRandom, SourcedRandom feature.Constructor
-
 func random(from, tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.MustGetValues()
 	sd, err := strconv.ParseFloat(list[0], 64)
@@ -35,16 +33,23 @@ func random(from, tag string, r *feature.RawFeature, e feature.Env) (feature.Inf
 		return ret
 	}
 
-	mf := func(d *data.Container) {
-		i := ef()
-		d.Set(i)
+	mf := func(d *data.Vector) {
+		d.Set(ef())
 	}
 
 	return construct(from, r.Set, tag, list, list, ef, mf)
 }
 
+func SimpleRandom() feature.Constructor {
+	return feature.DefaultConstructor("SIMPLE_RANDOM", simpleRandom)
+}
+
 func simpleRandom(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	return random("RANDOM", tag, r, e)
+}
+
+func SourcedRandom() feature.Constructor {
+	return feature.NewConstructor("SOURCED_RANDOM", 10000, sourcedRandom)
 }
 
 func sourcedRandom(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
@@ -62,10 +67,4 @@ func sourcedRandom(tag string, r *feature.RawFeature, e feature.Env) (feature.In
 		return random("SOURCED_RANDOM", tag, r, e)
 	}
 	return nil, nil, nil
-}
-
-func init() {
-	SimpleRandom = feature.DefaultConstructor("SIMPLE_RANDOM", simpleRandom)
-	SourcedRandom = feature.NewConstructor("SOURCED_RANDOM", 10000, sourcedRandom)
-	feature.SetConstructor(SimpleRandom, SourcedRandom)
 }

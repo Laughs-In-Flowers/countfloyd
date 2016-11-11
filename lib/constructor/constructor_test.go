@@ -12,7 +12,7 @@ import (
 	"github.com/Laughs-In-Flowers/data"
 )
 
-type testFeatureFn func(*testing.T, *testFeature, feature.Env, *data.Container)
+type testFeatureFn func(*testing.T, *testFeature, feature.Env, *data.Vector)
 
 type testFeature struct {
 	Set    []string      `"yaml:set"`
@@ -54,7 +54,7 @@ func orderDifference(have, unexpect []string) bool {
 	return false
 }
 
-func (f *testFeature) compareStringFromData(t *testing.T, d *data.Container, expect, unexpect []string) {
+func (f *testFeature) compareStringFromData(t *testing.T, d *data.Vector, expect, unexpect []string) {
 	dataKey := strings.ToUpper(f.Tag)
 	have := []string{d.ToString(dataKey)}
 	if expect != nil {
@@ -65,7 +65,7 @@ func (f *testFeature) compareStringFromData(t *testing.T, d *data.Container, exp
 	}
 }
 
-func (f *testFeature) compareStringsFromData(t *testing.T, d *data.Container, expect []string) {
+func (f *testFeature) compareStringsFromData(t *testing.T, d *data.Vector, expect []string) {
 	dataKey := strings.ToUpper(f.Tag)
 	have := d.ToStrings(dataKey)
 	assertLength(t, f, have, expect)
@@ -81,45 +81,61 @@ func getFeature(t *testing.T, e feature.Env, tf *testFeature) feature.Feature {
 	return feature
 }
 
-func stringInMulti(t *testing.T, e feature.Env, tf *testFeature, key string) string {
+func stringInVector(t *testing.T, e feature.Env, tf *testFeature, key string) string {
 	feature := getFeature(t, e, tf)
-	m, err := feature.EmitMulti()
+	m, err := feature.EmitVector()
 	if err != nil {
 		t.Error(err)
 	}
-	mc := m.ToMulti()
+	mc := m.ToVector()
 	return mc.ToString(key)
 }
 
-func (f *testFeature) compareStringsFromFeatureStrings(t *testing.T, e feature.Env, expect []string) {
+func (f *testFeature) compareStringsToFeatureValues(t *testing.T, e feature.Env, expect []string) {
 	feature := getFeature(t, e, f)
-	si, err := feature.EmitStrings()
-	if err != nil {
-		t.Error(err)
-	}
-	have := si.ToStrings()
-	assertLength(t, f, have, expect)
-	assertIn(t, f, have, expect)
+	vs := feature.Values()
+	assertLength(t, f, vs, expect)
+	assertIn(t, f, vs, expect)
 }
 
-func (f *testFeature) compareStringsFromFeatureStringsSplit(t *testing.T, e feature.Env, split string, expect1, expect2 []string) {
-	testKey := f.Apply
+func (f *testFeature) compareMultipleStringsToFeatureValues(t *testing.T, e feature.Env, split string, expect1, expect2 []string) {
 	feature := getFeature(t, e, f)
-	si, err := feature.EmitStrings()
-	if err != nil {
-		t.Error(err)
-	}
-	have := si.ToStrings()
+	have := feature.Values()
 	for _, v := range have {
 		spl := strings.Split(v, split)
 		if len(spl) != 2 {
-			t.Error("%s: unexpected split value in tested value", testKey)
+			t.Error("%s: unexpected split value in tested value", f.Apply)
 		}
 		assertIn(t, f, []string{spl[0]}, expect1)
 		assertLength(t, f, have, expect1)
 		assertIn(t, f, []string{spl[1]}, expect2)
 		assertLength(t, f, have, expect2)
 	}
+}
+
+func (f *testFeature) compareStringInVectorItem(t *testing.T, e feature.Env, key string, expects []string) {
+	feature := getFeature(t, e, f)
+	vi, err := feature.EmitVector()
+	if err != nil {
+		t.Error(err)
+	}
+	vii := vi.ToVector()
+	have := vii.ToString(key)
+	assertIn(t, f, []string{have}, expects)
+}
+
+func (f *testFeature) compareStringsFromFeatureStrings(t *testing.T, e feature.Env, expect []string) {
+	feature := getFeature(t, e, f)
+
+	si, err := feature.EmitStrings()
+	if err != nil {
+		t.Error(err)
+	}
+
+	have := si.ToStrings()
+
+	assertLength(t, f, have, expect)
+	assertIn(t, f, have, expect)
 }
 
 var (
@@ -149,21 +165,21 @@ var (
 	}
 
 	rawTestFeatures []*testFeature = []*testFeature{
-		{nil, "direct-a", "direct", []string{"a", "b", "c", "d", "e"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "list-a", "list", []string{"a", "b", "c", "d", "e"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromData(t, d, []string{"a", "b", "c", "d", "e"})
 			},
 		},
-		{nil, "direct-b", "direct_null", []string{"direct-a"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "list-b", "list_with_null", []string{"list-a"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromData(t, d, []string{"a", "b", "c", "d", "e", "NULL"})
 			},
 		},
-		{nil, "direct-c", "direct_shuffle", []string{"direct-a"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "list-c", "list_shuffle", []string{"list-b"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				ft := getFeature(t, e, f)
 				var o []bool
-				unexpect := []string{"a", "b", "c", "d", "e"}
+				unexpect := []string{"a", "b", "c", "d", "e", "NULL"}
 				for i := 1; i <= 100; i++ {
 					si, err := ft.EmitStrings()
 					if err != nil {
@@ -181,98 +197,104 @@ var (
 				}
 			},
 		},
+		{nil, "exa", "list", []string{"1-10"}, nil},
+		{nil, "expand-a", "list_expand_intrange", []string{"exa"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				f.compareStringsFromData(t, d, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"})
+			},
+		},
+		{nil, "exb", "list", []string{"1", "2", "5"}, nil},
+		{nil, "expand-b", "list_expand_mirrorints", []string{"exb"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				f.compareStringsFromData(t, d, []string{"-5", "-2", "-1", "1", "2", "5"})
+			},
+		},
 		{nil, "collection-member-a", "collection_member", []string{"ace", "2-10", "jack", "queen", "king"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				have := d.ToString("COLLECTION-MEMBER-A")
 
 				nv := d.ToInt("feature.priority")
 				key := strconv.Itoa(nv)
-				expect := stringInMulti(t, e, f, key)
+				expect := stringInVector(t, e, f, key)
 
 				if have != expect {
 					t.Errorf("collection_member: have %s, expected %s", have, expect)
 				}
 			},
 		},
-		{nil, "list-a", "direct", fruits1, nil},
-		{nil, "list-b", "direct_null", []string{"list-a"}, nil},
-		{nil, "list-c", "direct", fruits2, nil},
-		{nil, "list-d", "direct_null", []string{"list-c"}, nil},
-		{nil, "combination-strings-a", "combination_strings", []string{"2", "false", "false", "list-b", "list-d"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "fruits-a", "list", fruits1, nil},
+		{nil, "fruits-b", "list_with_null", []string{"fruits-a"}, nil},
+		{nil, "fruits-c", "list", fruits2, nil},
+		{nil, "fruits-d", "list_with_null", []string{"fruits-c"}, nil},
+		{nil, "combination-strings-a", "combination_strings", []string{"2", "false", "false", "fruits-b", "fruits-d"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromFeatureStrings(t, e, fruitsNoRepeat)
 			},
 		},
-		{nil, "combination-strings-b", "combination_strings", []string{"2", "true", "true", "list-b", "list-d"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "combination-strings-b", "combination_strings", []string{"2", "true", "true", "fruits-b", "fruits-d"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromFeatureStrings(t, e, fruitsRepeat)
 			},
 		},
-		//{nil, "select-combination-a", "same_weighted_string", []string{"combination-strings-a", "1"},
-		//	func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-		//		f.compareStringFromData(t, d, fruitsNoRepeat, nil)
-		//	},
-		//},
-		//{"combination-int-a", "combination_int", []string{}, nil},
-		{nil, "exa", "direct", []string{"1-10"}, nil},
-		{nil, "expand-ints-a", "expand_ints", []string{"exa", "range"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-				f.compareStringsFromData(t, d, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"})
-			},
-		},
-		{nil, "exb", "direct", []string{"1", "2", "5"}, nil},
-		{nil, "expand-ints-b", "expand_ints", []string{"exb", "mirror"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-				f.compareStringsFromData(t, d, []string{"-5", "-2", "-1", "1", "2", "5"})
+		{nil, "select-combination-a", "weighted_string_with_weights", []string{"combination-strings-a", "x"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				f.compareStringFromData(t, d, fruitsNoRepeat, nil)
 			},
 		},
 		{nil, "random-a", "simple_random", []string{"1", "on", "off"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringFromData(t, d, []string{"on", "off"}, []string{""})
 			},
 		},
 		{nil, "random-b", "simple_random", []string{"0.5", "yes"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringFromData(t, d, []string{"yes", ""}, nil)
 			},
 		},
-		{nil, "random-c", "sourced_random", []string{"1", "list-c"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "random-c", "sourced_random", []string{"1", "fruits-c"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringFromData(t, d, fruits2, nil)
 			},
 		},
-		//{nil, "weighted-string-a", "weighted_string", []string{"SOURCED", "direct-b", "normalize"},
-		//	func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-		//		expect := []string{"a_800", "b_800", "c_3400", "d_3400", "e_800", "NULL_800"}
-		//		f.compareStringsFromFeatureStrings(t, e, expect)
-		//	},
-		//},
-		//{nil, "weighted-string-b", "weighted_string", []string{"SOURCED", "direct-b", "normalizeShuffle"},
-		//	func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-		//		expect1 := []string{"a", "b", "c", "d", "e", "NULL"}
-		//		expect2 := []string{"800", "800", "3400", "3400", "800", "800"}
-		//		f.compareStringsFromFeatureStringsSplit(t, e, "_", expect1, expect2)
-		//	},
-		//},
-		{nil, "weighted-string-c", "weighted_string_with_weights", []string{"direct-b", "5", "500", "10"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{nil, "weighted-string-a", "weighted_string_with_weights", []string{"list-b", "5", "500", "10"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				expect := []string{"a_5", "b_500", "c_10", "d_5", "e_500", "NULL_10"}
-				f.compareStringsFromFeatureStrings(t, e, expect)
+				f.compareStringsToFeatureValues(t, e, expect)
 			},
 		},
-		{nil, "weighted-string-d", "weighted_string_with_weights", []string{"direct-b", "1"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
-				expect := []string{"a_1", "b_1", "c_1", "d_1", "e_1", "NULL_1"}
-				f.compareStringsFromFeatureStrings(t, e, expect)
+		{nil, "weighted-string-b", "weighted_string_with_weights", []string{"list-b", "5", "500", "10", "1", "1000", "100", "9", "9", "9"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				expect := []string{"a_5", "b_500", "c_10", "d_1", "e_1000", "NULL_100", "a_9", "b_9", "c_9"}
+				f.compareStringsToFeatureValues(t, e, expect)
 			},
 		},
-		//{"", "weighted_int", []string{}, nil},
-		//{"", "weighted_float", []string{}, nil},
-		//{"", "set", []string{},nil},
-		//{"", "set", []string{},nil},
-		//{"", "set", []string{}, nil},
+		{nil, "weighted-string-c", "weighted_string_with_normalized_weights", []string{"list-b", ""},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				expect := []string{"a_1", "b_4", "c_29", "d_136", "e_412", "NULL_801"}
+				f.compareStringsToFeatureValues(t, e, expect)
+			},
+		},
+		{nil, "weighted-string-d", "weighted_string_with_normalized_weights", []string{"list-c", ""},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				expect1 := []string{"a", "b", "c", "d", "e", "NULL"}
+				expect2 := []string{"1", "4", "29", "136", "412", "801"}
+				f.compareMultipleStringsToFeatureValues(t, e, "_", expect1, expect2)
+			},
+		},
+		{nil, "set-a", "set", []string{"v1;random-a", "v2;random-c", "v3;weighted-string-c"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				expects := []string{"a", "b", "c", "d", "e", "NULL"}
+				f.compareStringInVectorItem(t, e, "set-a.v3", expects)
+			},
+		},
+		{nil, "set-b", "set", []string{"v1;set-a", "v2;set-a", "v3;set-a"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
+				expects := []string{"a", "b", "c", "d", "e", "NULL"}
+				f.compareStringInVectorItem(t, e, "set-b.v3.set-a.v3", expects)
+			},
+		},
 		{nil, "from-custom-constructor", "test_constructor", []string{"TEST", "TEST", "TEST"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				expect := []string{"TEST", "TEST", "TEST"}
 				f.compareStringsFromFeatureStrings(t, e, expect)
 			},
@@ -280,28 +302,28 @@ var (
 	}
 
 	rawWriteTestFeatures []*testFeature = []*testFeature{
-		{[]string{"FILE"}, "direct-file-a", "direct", []string{"A", "B", "C", "D", "E"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{[]string{"FILE"}, "list-file-a", "list", []string{"A", "B", "C", "D", "E"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromData(t, d, []string{"A", "B", "C", "D", "E"})
 			},
 		},
-		{[]string{"FILE"}, "direct-file-d", "direct_null", []string{"direct-file-a"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{[]string{"FILE"}, "list-file-b", "list_with_null", []string{"list-file-a"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromData(t, d, []string{"A", "B", "C", "D", "E", "NULL"})
 			},
 		},
 	}
 
 	rawSetFeatures []*testFeature = []*testFeature{
-		{[]string{"SET"}, "direct-in-set", "direct", []string{"a", "b", "c", "4"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{[]string{"SET"}, "derp", "list", []string{"a", "b", "c", "4"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				f.compareStringsFromData(t, d, []string{"a", "b", "c", "4"})
 			},
 		},
-		{[]string{"SET"}, "weighted-string-in-set", "weighted_string_with_weights", []string{"direct-in-set", "1"},
-			func(t *testing.T, f *testFeature, e feature.Env, d *data.Container) {
+		{[]string{"SET"}, "weighted-string-in-set", "weighted_string_with_weights", []string{"derp", "1"},
+			func(t *testing.T, f *testFeature, e feature.Env, d *data.Vector) {
 				expect := []string{"a_1", "b_1", "c_1", "4_1"}
-				f.compareStringsFromFeatureStrings(t, e, expect)
+				f.compareStringsToFeatureValues(t, e, expect)
 			},
 		},
 	}
@@ -355,7 +377,7 @@ func customConstructorFn(tag string, r *feature.RawFeature, e feature.Env) (feat
 		return data.NewStringsItem(tag, list...)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 

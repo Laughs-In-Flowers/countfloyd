@@ -11,7 +11,6 @@ import (
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
 	"github.com/Laughs-In-Flowers/log"
-	"github.com/davecgh/go-spew/spew"
 )
 
 type settings struct {
@@ -191,24 +190,13 @@ func (h *Handlers) SetHandle(hs ...*Handler) {
 	}
 }
 
-//func fileData(path string) (*os.File, []byte, error) {
-//	fl, err := data.Open(path)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//	var n int64
-//	if fi, err := fl.Stat(); err == nil {
-//		if size := fi.Size(); size < 1e9 {
-//			n = size
-//		}
-//	}
-//	b := make([]byte, n)
-//	_, err = fl.Read(b)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//	return fl, b, nil
-//}
+func NewDataFrom(m *data.Vector, e feature.Env) *data.Vector {
+	n := m.ToInt("meta.number")
+	d := feature.NewData(n)
+	a := m.ToStrings("meta.features")
+	e.Apply(a, d)
+	return d
+}
 
 var localHandlers []*Handler = []*Handler{
 	NewHandler(
@@ -267,44 +255,63 @@ var localHandlers []*Handler = []*Handler{
 		func(s *Server, r *Request) []byte {
 			resp := EmptyResponse()
 			d := r.Data
-			resp.Data = feature.DataFrom(d, s)
+			resp.Data = NewDataFrom(d, s)
 			return resp.ToByte()
 		}),
-	//NewHandler(
-	//	"data",
-	//	"apply_to_file",
-	//	func(s *Server, r *Request) []byte {
-	//		resp := EmptyResponse()
-	//		d := r.Data
-	//		path := d.ToString("file")
-	//
-	//		fl, b, err := fileData(path)
-	//		if err != nil {
-	//			resp.Error = err
-	//		}
-	//
-	//		err = d.UnmarshalJSON(b)
-	//		if err != nil {
-	//			resp.Error = err
-	//		}
+	NewHandler(
+		"data",
+		"apply_to_file",
+		func(s *Server, r *Request) []byte {
+			resp := EmptyResponse()
+			d := r.Data
+			path := d.ToString("file")
 
-	//		existing := d.Clone("file", "action")
+			fileData := func(path string) (*os.File, []byte, error) {
+				fl, err := data.Open(path)
+				if err != nil {
+					return nil, nil, err
+				}
+				var n int64
+				if fi, err := fl.Stat(); err == nil {
+					if size := fi.Size(); size < 1e9 {
+						n = size
+					}
+				}
+				b := make([]byte, n)
+				_, err = fl.Read(b)
+				if err != nil {
+					return nil, nil, err
+				}
+				return fl, b, nil
+			}
 
-	//		resp.Data = feature.DataFrom(existing, s)
+			fl, b, err := fileData(path)
+			if err != nil {
+				resp.Error = err
+			}
 
-	//		existing.Merge(resp.Data)
+			err = d.UnmarshalJSON(b)
+			if err != nil {
+				resp.Error = err
+			}
 
-	//		var afb []byte
-	//		afb, err = existing.MarshalJSON()
-	//		if err != nil {
-	//			resp.Error = err
-	//		}
+			existing := d.Clone("file", "action")
 
-	//		fl.Truncate(0)
-	//		fl.WriteAt(afb, 0)
-	//		fl.Sync()
-	//		return resp.ToByte()
-	//	}),
+			resp.Data = NewDataFrom(existing, s)
+
+			existing.Merge(resp.Data)
+
+			var afb []byte
+			afb, err = existing.MarshalJSON()
+			if err != nil {
+				resp.Error = err
+			}
+
+			fl.Truncate(0)
+			fl.WriteAt(afb, 0)
+			fl.Sync()
+			return resp.ToByte()
+		}),
 }
 
 func (s *Server) process(r []byte) []byte {
@@ -313,7 +320,6 @@ func (s *Server) process(r []byte) []byte {
 	if fn != nil {
 		return fn(s, req)
 	}
-	spew.Dump(err)
 	return ErrorResponse(err).ToByte()
 }
 

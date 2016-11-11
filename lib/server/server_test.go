@@ -18,7 +18,7 @@ var (
 	}
 )
 
-func container(tag string) *data.Container {
+func container(tag string) *data.Vector {
 	d := data.New(tag)
 	return d
 }

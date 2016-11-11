@@ -11,10 +11,10 @@ import (
 type Request struct {
 	Service Service
 	Action  Action
-	Data    *data.Container
+	Data    *data.Vector
 }
 
-func NewRequest(s Service, a Action, d *data.Container) *Request {
+func NewRequest(s Service, a Action, d *data.Vector) *Request {
 	return &Request{
 		s, a, d,
 	}
@@ -68,7 +68,7 @@ func (s Space) Action() Action {
 	return s[1]
 }
 
-func (s Space) Data() *data.Container {
+func (s Space) Data() *data.Vector {
 	d := data.New("")
 	err := json.Unmarshal(s[2], &d)
 	if err != nil {

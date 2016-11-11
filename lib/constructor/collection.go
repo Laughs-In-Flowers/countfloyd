@@ -5,7 +5,9 @@ import (
 	"github.com/Laughs-In-Flowers/data"
 )
 
-var CollectionMember feature.Constructor
+func CollectionMember() feature.Constructor {
+	return feature.NewConstructor("COLLECTION_MEMBER", 50, collectionMember)
+}
 
 func collectionMember(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.Values
@@ -18,10 +20,10 @@ func collectionMember(tag string, r *feature.RawFeature, e feature.Env) (feature
 		for k, v := range m {
 			d.Set(data.NewStringItem(k, v))
 		}
-		return data.NewMultiItem(tag, d)
+		return data.NewVectorItem(tag, d)
 	}
 
-	mf := func(f *data.Container) {
+	mf := func(f *data.Vector) {
 		n := f.ToInt("feature.priority")
 		if v, ok := mapped[n]; ok {
 			f.Set(data.NewStringItem(tag, v))
@@ -29,9 +31,4 @@ func collectionMember(tag string, r *feature.RawFeature, e feature.Env) (feature
 	}
 
 	return construct("COLLECTION_MEMBER", r.Set, tag, list, ex, ef, mf)
-}
-
-func init() {
-	CollectionMember = feature.NewConstructor("COLLECTION_MEMBER", 50, collectionMember)
-	feature.SetConstructor(CollectionMember)
 }

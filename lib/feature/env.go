@@ -16,8 +16,8 @@ type Env interface {
 }
 
 type Applicator interface {
-	Apply([]string, *data.Container, ...MapFn) error
-	ApplyFor([]string, *data.Container, int, ...MapFn) error
+	Apply([]string, *data.Vector, ...MapFn) error
+	ApplyFor([]string, *data.Vector, int, ...MapFn) error
 }
 
 type Populator interface {
@@ -96,13 +96,13 @@ func (e *env) PopulateGroup(sv ...string) error {
 	return nil
 }
 
-func (e *env) Apply(list []string, to *data.Container, with ...MapFn) error {
+func (e *env) Apply(list []string, to *data.Vector, with ...MapFn) error {
 	return e.ApplyFor(list, to, 1, with...)
 }
 
-func fill(e Env, list []string, to *data.Container) {
+func fill(e Env, list []string, to *data.Vector) {
 	var wg sync.WaitGroup
-	ff := func(s string, to *data.Container) {
+	ff := func(s string, to *data.Vector) {
 		if ft := e.GetFeature(s); ft != nil {
 			ft.Map(to)
 		}
@@ -115,7 +115,7 @@ func fill(e Env, list []string, to *data.Container) {
 	wg.Wait()
 }
 
-func (e *env) ApplyFor(list []string, to *data.Container, pass int, with ...MapFn) error {
+func (e *env) ApplyFor(list []string, to *data.Vector, pass int, with ...MapFn) error {
 	for i := 1; i <= pass; i++ {
 		fill(e, list, to)
 		for _, fn := range with {

@@ -117,7 +117,9 @@ func repeated_combinations(list []int, select_num, buf int) (c chan []int) {
 	return
 }
 
-var CombinationStrings feature.Constructor
+func CombinationStrings() feature.Constructor {
+	return feature.NewConstructor("COMBINATION_STRINGS", 90, combinationOfStrings)
+}
 
 func combinationOfStrings(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	rp, num, repeat, same, buf := csArgParser(e, r.MustGetValues())
@@ -134,7 +136,7 @@ func combinationOfStrings(tag string, r *feature.RawFeature, e feature.Env) (fea
 		}
 	}
 
-	return directFromList("COMBINATION_STRINGS", r.Set, tag, r.Values, vals, e)
+	return listFrom("COMBINATION_STRINGS", r.Set, tag, r.Values, vals, e)
 }
 
 func csArgParser(e feature.Env, args []string) (Replacer, int, bool, bool, int) {
@@ -180,9 +182,4 @@ func csArgParser(e feature.Env, args []string) (Replacer, int, bool, bool, int) 
 	buf := 2 * len(from)
 
 	return rp, num, repeat, same, buf
-}
-
-func init() {
-	CombinationStrings = feature.NewConstructor("COMBINATION_STRINGS", 90, combinationOfStrings)
-	feature.SetConstructor(CombinationStrings)
 }

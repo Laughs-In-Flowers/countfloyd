@@ -1,50 +1,74 @@
 package constructor
 
 import (
+	"strings"
+
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
 )
 
-var Set feature.Constructor
-
-func set(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
-	list := r.MustGetValues()
-
-	ef := func() data.Item {
-		//i := make(map[string]string)
-		//for _, v := range list {
-		//	spl := strings.Split(v, ";")
-		//	if len(spl) == 2 {
-		//		ft := e.GetFeature(spl[1])
-		//		if ft != nil {
-		//			ei := ft.Emit()
-		//			eik := strings.ToLower(strings.Join([]string{tag, spl[0]}, "."))
-		//			i[eik] = ei.ToString()
-		//		}
-		//	}
-		//}
-		//ret := data.NewItem(tag, "")
-		//ret.SetMap(i)
-		//return ret
-		return nil
-	}
-
-	mf := func(d *data.Container) {
-		//i := ef()
-		//mi := i.ToMap()
-		//var nis []data.Item
-		//for k, v := range mi {
-		//	key := strings.Join([]string{tag, k}, ".")
-		//	ni := data.NewItem(key, v)
-		//	nis = append(nis, ni)
-		//}
-		//d.Set(nis...)
-	}
-
-	return construct("SET", r.Set, tag, list, list, ef, mf)
+func Set() feature.Constructor {
+	return feature.NewConstructor("SET", 50, set)
 }
 
-func init() {
-	Set = feature.NewConstructor("SET", 50, set)
-	feature.SetConstructor(Set)
+type kf struct {
+	k string
+	f feature.Feature
+}
+
+func extractKF(e feature.Env, tag string, r string) *kf {
+	spl := strings.Split(r, ";")
+	if len(spl) != 2 {
+		return nil
+	}
+	k := strings.Join([]string{tag, spl[0]}, ".")
+	f := e.GetFeature(spl[1])
+	return &kf{k, f}
+}
+
+func extractKFS(e feature.Env, tag string, r ...string) []*kf {
+	var ret []*kf
+	for _, v := range r {
+		if x := extractKF(e, tag, v); x.f != nil {
+			ret = append(ret, x)
+		}
+	}
+	return ret
+}
+
+func set(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+	raw := r.MustGetValues()
+
+	values := argsMustBeLength(e, raw, 1)
+
+	ef := func() data.Item {
+		d := data.New("")
+		kfs := extractKFS(e, strings.ToLower(tag), values...)
+		for _, v := range kfs {
+			i := v.f.Emit()
+			i.NewKey(v.k)
+			switch i.(type) {
+			case data.VectorItem:
+				if dv, err := v.f.EmitVector(); err == nil {
+					vi := dv.ToVector()
+					ldv := vi.List()
+					for _, ldvi := range ldv {
+						o := ldvi.Key()
+						nk := strings.Join([]string{v.k, o}, ".")
+						ldvi.NewKey(nk)
+					}
+					d.Set(ldv...)
+				}
+			default:
+				d.Set(i)
+			}
+		}
+		return data.NewVectorItem(tag, d)
+	}
+
+	mf := func(d *data.Vector) {
+		d.Set(ef())
+	}
+
+	return construct("SET", r.Set, tag, raw, values, ef, mf)
 }

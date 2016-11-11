@@ -2,17 +2,13 @@ package constructor
 
 import (
 	cr "crypto/rand"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
-)
-
-var (
-	WeightedStringWithWeights           feature.Constructor
-	WeightedStringWithNormalizedWeights feature.Constructor
 )
 
 type Choice struct {
@@ -88,11 +84,11 @@ func wsParse(tag string,
 
 	numbers := nfn(baseValues, raw[1:]...)
 
-	ef := weightedStringEmitFunction(tag, numbers)
-
 	csr := SplitStringChoices(numbers)
 
-	mf := weightedStringMapFunction(tag, csr)
+	ef := weightedStringEmitFunction(tag, csr)
+
+	mf := weightedStringMapFunction(tag, ef)
 
 	return &wsp{r.Set, raw, numbers, ef, mf}
 }
@@ -104,7 +100,7 @@ func weightedStringWith(
 	raw []string,
 	values []string,
 	ef func() data.Item,
-	mf func(*data.Container),
+	mf func(*data.Vector),
 ) (feature.Informer, feature.Emitter, feature.Mapper) {
 	return construct(from, group, tag, raw, values, ef, mf)
 }
@@ -117,14 +113,8 @@ func baseValuesList(f string, e feature.Env) []string {
 	return nil
 }
 
-func weightedStringEmitFunction(tag string, numbers []string) feature.EmitFn {
+func weightedStringEmitFunction(tag string, csr Choices) feature.EmitFn {
 	return func() data.Item {
-		return data.NewStringsItem(tag, numbers...)
-	}
-}
-
-func weightedStringMapFunction(tag string, csr Choices) feature.MapFn {
-	return func(d *data.Container) {
 		i := data.NewStringItem(tag, "")
 		c, err := csr.Choose()
 		if err != nil {
@@ -132,9 +122,75 @@ func weightedStringMapFunction(tag string, csr Choices) feature.MapFn {
 		}
 		if cs, ok := c.Value.(string); ok {
 			i.SetString(cs)
-			d.Set(i)
+		}
+		return i
+	}
+}
+
+func weightedStringMapFunction(tag string, fn feature.EmitFn) feature.MapFn {
+	return func(d *data.Vector) {
+		d.Set(fn())
+	}
+}
+
+func levelWeighting(in []string, a string) []string {
+	var ret []string
+	for _, v := range in {
+		ts := &tuple{v, a}
+		ret = append(ret, ts.String())
+	}
+	return ret
+}
+
+func withNumbersWeighting(in []string, numbers ...string) []string {
+	var ret []string
+
+	switch {
+	case len(numbers) == 1:
+		ret = levelWeighting(in, numbers[0])
+	default:
+		var inner, outer []string
+		var numbered string
+
+		if len(numbers) > len(in) {
+			outer = numbers
+			inner = in
+			numbered = "outer"
+		} else {
+			outer = in
+			inner = numbers
+			numbered = "inner"
+		}
+
+		li := len(inner)
+
+		var hold []tuple
+
+		for i, x := range outer {
+			if i >= li {
+				hold = append(hold, tuple{inner[mod(i, li)], x})
+			} else {
+				hold = append(hold, tuple{inner[i], x})
+			}
+		}
+
+		for _, h := range hold {
+			switch {
+			case numbered == "outer":
+				ret = append(ret, h.String())
+			case numbered == "inner":
+				ret = append(ret, h.StringReverse())
+			}
 		}
 	}
+
+	return ret
+}
+
+func WeightedStringWithWeights() feature.Constructor {
+	return feature.NewConstructor(
+		"WEIGHTED_STRING_WITH_WEIGHTS", 150, wsWithWeights,
+	)
 }
 
 func wsWithWeights(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
@@ -146,6 +202,29 @@ func wsWithWeights(tag string, r *feature.RawFeature, e feature.Env) (feature.In
 		wsp.numbers,
 		wsp.ef,
 		wsp.mf,
+	)
+}
+
+func normalizeWeighting(in []string, x ...string) []string {
+	mean := float64(len(in) - 1/2)
+
+	sd := .25 * float64(len(in))
+
+	variance := math.Pow(float64(sd), 2)
+
+	var ret []string
+	for i, v := range in {
+		w := math.Ceil(1000 * math.Exp(-(math.Pow((float64(i)-mean), 2) / (2 * variance))))
+		ts := &tuple{v, strconv.Itoa(int(w))}
+		ret = append(ret, ts.String())
+	}
+
+	return ret
+}
+
+func WeightedStringWithNormalizedWeights() feature.Constructor {
+	return feature.NewConstructor(
+		"WEIGHTED_STRING_WITH_NORMALIZED_WEIGHTS", 150, wsWithNormalizedWeights,
 	)
 }
 
@@ -182,17 +261,4 @@ func SplitStringChoices(s []string) Choices {
 		ret = append(ret, SplitStringChoice(v))
 	}
 	return &choices{ret}
-}
-
-func init() {
-	WeightedStringWithWeights = feature.NewConstructor(
-		"WEIGHTED_STRING_WITH_WEIGHTS", 101, wsWithWeights,
-	)
-	WeightedStringWithNormalizedWeights = feature.NewConstructor(
-		"WEIGHTED_STRING_WITH_NORMALIZED_WEIGHTS", 102, wsWithNormalizedWeights,
-	)
-	feature.SetConstructor(
-		WeightedStringWithWeights,
-		WeightedStringWithNormalizedWeights,
-	)
 }

@@ -142,7 +142,7 @@ var (
 	versionDate    string = "No Date"
 )
 
-func connect(s *sonnect, service, action string, d *data.Container) flip.ExitStatus {
+func connect(s *sonnect, service, action string, d *data.Vector) flip.ExitStatus {
 	req := cf.NewRequest(
 		cf.ByteService(service),
 		cf.ByteAction(action),
@@ -171,37 +171,6 @@ func connect(s *sonnect, service, action string, d *data.Container) flip.ExitSta
 
 	return flip.ExitSuccess
 }
-
-//func connectByte(s *sonnect, b []byte) flip.ExitStatus {
-//	conn, err := connection(s.local, s.socket)
-//	defer cleanup(conn, s.local)
-//	if err != nil {
-//		return onError(err)
-//	}
-//
-//	_, err = conn.Write(b)
-//	if err != nil {
-//		return onError(err)
-//	}
-//
-//	resp, err := response(conn, s.timeout)
-//	if err != nil {
-//		return onError(err)
-//	}
-//
-//	L.Print(resp)
-//
-//	return flip.ExitSuccess
-//}
-
-//func connectData(s *sonnect, d *data.Container) flip.ExitStatus {
-//	b, err := d.MarshalJSON()
-//	if err != nil {
-//		return onError(err)
-//	}
-//
-//	return connectByte(s, b)
-//}
 
 func onError(err error) flip.ExitStatus {
 	L.Printf(err.Error())
@@ -393,7 +362,8 @@ func ApplyCommand() flip.Command {
 				action = "apply_to_file"
 			default:
 				d.Set(data.NewIntItem("meta.number", o.MetaNumber))
-				d.Set(data.NewStringItem("meta.features", o.MetaFeatures))
+				spl := strings.Split(o.MetaFeatures, ",")
+				d.Set(data.NewStringsItem("meta.features", spl...))
 				action = "apply"
 			}
 			return connect(current, "data", action, d)

@@ -1,50 +1,54 @@
 ---                                                   
 - tag: on-off
-  apply: random
+  apply: simple_random
   values: [1, "on", "off"]
 - tag: true-false
-  apply: random
+  apply: simple_random
   values: [1, "true", "false"]
 - tag: law-orientation-list 
-  apply: direct
-  values: ["lawful,neutral,chaotic"]
+  apply: list
+  values:
+    - lawful
+    - neutral
+    - chaotic
 - tag: life-orientation-list
-  apply: direct
-  values: ["good,neutral,evil"]
+  apply: list
+  values:
+    - good
+    - neutral
+    - evil
 - tag: alignment
   apply: combination_strings
-  values: [2,
-           false,
-           false, 
-           law-orientation-list,
-           life-orientation-list]
+  values:
+    - 2
+    - false
+    - false
+    - law-orientation-list
+    - life-orientation-list
 - tag: needs-list
-  apply: direct
-  values: [physiological,
-           safety,
-           love/belonging,
-           esteem,
-           actualisation,
-           trancendence]
+  apply: list
+  values:
+    - physiological
+    - safety
+    - love/belonging
+    - esteem
+    - actualisation
+    - trancendence
+- tag: needs-shuffled
+  apply: list_shuffle
+  values: [needs-list]
 - tag: orientation-cue
   apply: combination_strings
-  values: [3,
-           false,
-           false,
-           law-orientation-list,
-           life-orientation-list,
-           needs-list]
+  values:
+    - 3
+    - false
+    - false
+    - law-orientation-list
+    - life-orientation-list
+    - needs-list
 - tag: self-needs
-  apply: weighted_string
-  values: [SOURCED,
-           needs-list,
-           normalize]
+  apply: weighted_string_with_normalized_weights
+  values: [needs-shuffled,""]
 - tag: society-orient
-  apply: weighted_string
-  values: [SOURCED,
-           alignment,
-           normalize]
-- tag: motivation
-  apply: dictionary_for_each
-  values: ["a:self-needs",
-           "b:society-orient"]
+  apply: weighted_string_with_weights
+  values: [alignment, 25, 30, 100, 7, 10, 9, 8, 7, 7, 100, 2]

@@ -19,7 +19,7 @@ func testConstructorString(tag string, r *RawFeature, e Env) (Informer, Emitter,
 		return data.NewStringItem(tag, ckey)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -36,7 +36,7 @@ func testConstructorStrings(tag string, r *RawFeature, e Env) (Informer, Emitter
 		return data.NewStringsItem(tag, ckeys...)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -50,7 +50,7 @@ func testConstructorBool(tag string, r *RawFeature, e Env) (Informer, Emitter, M
 		return data.NewBoolItem(tag, false)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -68,7 +68,7 @@ func testConstructorInt(tag string, r *RawFeature, e Env) (Informer, Emitter, Ma
 		return data.NewIntItem(tag, vn)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -86,7 +86,7 @@ func testConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, 
 		return data.NewFloatItem(tag, vn)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -95,16 +95,16 @@ func testConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, 
 		NewMapper(mf)
 }
 
-func testConstructorMulti(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func testConstructorVector(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	ckey := fmt.Sprintf("TEST_MULTI:%s", tag)
 
 	ef := func() data.Item {
 		d := data.New("")
 		d.Set(data.NewStringItem("key", ckey))
-		return data.NewMultiItem("multi", d)
+		return data.NewVectorItem("multi", d)
 	}
 
-	mf := func(d *data.Container) {
+	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
@@ -114,11 +114,11 @@ func testConstructorMulti(tag string, r *RawFeature, e Env) (Informer, Emitter, 
 }
 
 type testFeature struct {
-	Set    []string                                             `"yaml:set"`
-	Tag    string                                               `"yaml:tag"`
-	Apply  string                                               `"yaml:apply"`
-	Values []string                                             `"yaml:values"`
-	fn     func(*testing.T, *testFeature, Env, *data.Container) `"yaml:-"`
+	Set    []string                                          `"yaml:set"`
+	Tag    string                                            `"yaml:tag"`
+	Apply  string                                            `"yaml:apply"`
+	Values []string                                          `"yaml:values"`
+	fn     func(*testing.T, *testFeature, Env, *data.Vector) `"yaml:-"`
 }
 
 func getFeature(t *testing.T, e Env, f *testFeature) Feature {
@@ -169,12 +169,12 @@ var (
 		NewConstructor("CONSTRUCTOR_BOOL", 700, testConstructorBool),
 		NewConstructor("CONSTRUCTOR_INT", 500, testConstructorInt),
 		NewConstructor("CONSTRUCTOR_FLOAT", 2000, testConstructorFloat),
-		DefaultConstructor("CONSTRUCTOR_MULTI", testConstructorMulti),
+		DefaultConstructor("CONSTRUCTOR_MULTI", testConstructorVector),
 	}
 
 	rawTestFeatures []*testFeature = []*testFeature{
 		{nil, "feature-string", "constructor_string", []string{"TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				si, err := feature.EmitString()
 				if err != nil {
@@ -186,7 +186,7 @@ var (
 			},
 		},
 		{nil, "feature-strings", "constructor_strings", []string{"TEST", "TEST", "TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				si, err := feature.EmitStrings()
 				if err != nil {
@@ -198,7 +198,7 @@ var (
 			},
 		},
 		{nil, "feature-bool", "constructor_bool", []string{"false"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				bi, err := feature.EmitBool()
 				if err != nil {
@@ -212,7 +212,7 @@ var (
 			},
 		},
 		{nil, "feature-int", "constructor_int", []string{"9000"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				ii, err := feature.EmitInt()
 				if err != nil {
@@ -226,7 +226,7 @@ var (
 			},
 		},
 		{nil, "feature-float", "constructor_float", []string{"9000.0000001"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				fi, err := feature.EmitFloat()
 				if err != nil {
@@ -240,13 +240,13 @@ var (
 			},
 		},
 		{nil, "feature-multi", "constructor_multi", []string{"TEST", "TEST", "TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
-				mi, err := feature.EmitMulti()
+				mi, err := feature.EmitVector()
 				if err != nil {
 					t.Error(err)
 				}
-				c := mi.ToMulti()
+				c := mi.ToVector()
 				have := c.ToString("key")
 				expect := "TEST_MULTI:FEATURE-MULTI"
 				if have != expect {
@@ -258,7 +258,7 @@ var (
 
 	rawWriteTestFeatures []*testFeature = []*testFeature{
 		{[]string{"FILE"}, "feature-file-strings", "constructor_strings", []string{"A", "B", "C", "D", "E"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				si, err := feature.EmitStrings()
 				if err != nil {
@@ -273,7 +273,7 @@ var (
 
 	rawSetFeatures []*testFeature = []*testFeature{
 		{[]string{"SET"}, "feature-set-strings", "constructor_strings", []string{"a", "b", "c", "4"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Container) {
+			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
 				feature := getFeature(t, e, f)
 				si, err := feature.EmitStrings()
 				if err != nil {
@@ -407,7 +407,7 @@ func testOfFeature(t *testing.T, e Env) {
 	check2 = append(check2, err)
 	_, err = f.EmitFloat()
 	check2 = append(check2, err)
-	_, err = f.EmitMulti()
+	_, err = f.EmitVector()
 	check2 = append(check2, err)
 
 	for _, er := range check2 {

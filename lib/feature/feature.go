@@ -144,7 +144,7 @@ type Emitter interface {
 	EmitBool() (data.BoolItem, error)
 	EmitInt() (data.IntItem, error)
 	EmitFloat() (data.FloatItem, error)
-	EmitMulti() (data.MultiItem, error)
+	EmitVector() (data.VectorItem, error)
 }
 
 type emitter struct {
@@ -195,14 +195,6 @@ func (e *emitter) EmitInt() (data.IntItem, error) {
 	return nil, EmitTypeError("int")
 }
 
-//func (e *emitter) EmitInts() (data.IntsItem, error) {
-//	f := e.Emit()
-//	if sf, ok := f.(data.IntsItem); ok {
-//		return sf, nil
-//	}
-//	return nil, EmitTypeError("int")
-//}
-
 func (e *emitter) EmitFloat() (data.FloatItem, error) {
 	f := e.Emit()
 	if sf, ok := f.(data.FloatItem); ok {
@@ -211,26 +203,18 @@ func (e *emitter) EmitFloat() (data.FloatItem, error) {
 	return nil, EmitTypeError("float")
 }
 
-//func (e *emitter) EmitFloats() (data.FloatsItem, error) {
-//	f := e.Emit()
-//	if sf, ok := f.(data.FloatsItem); ok {
-//		return sf, nil
-//	}
-//	return nil, EmitTypeError("int")
-//}
-
-func (e *emitter) EmitMulti() (data.MultiItem, error) {
+func (e *emitter) EmitVector() (data.VectorItem, error) {
 	f := e.Emit()
-	if sf, ok := f.(data.MultiItem); ok {
+	if sf, ok := f.(data.VectorItem); ok {
 		return sf, nil
 	}
 	return nil, EmitTypeError("multi")
 }
 
-type MapFn func(*data.Container)
+type MapFn func(*data.Vector)
 
 type Mapper interface {
-	Map(*data.Container)
+	Map(*data.Vector)
 }
 
 type mapper struct {
@@ -241,7 +225,7 @@ func NewMapper(mfn MapFn) Mapper {
 	return &mapper{mfn}
 }
 
-func (m *mapper) Map(d *data.Container) {
+func (m *mapper) Map(d *data.Vector) {
 	m.mFn(d)
 }
 
@@ -360,7 +344,7 @@ func (fs *features) List(group string) []RawFeature {
 	return g.List()
 }
 
-func NewData(n int) *data.Container {
+func NewData(n int) *data.Vector {
 	d := data.New("FEATURES")
 	d.Set(data.NewIntItem("feature.priority", n))
 	return d
