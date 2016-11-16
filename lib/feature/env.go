@@ -4,13 +4,16 @@ import (
 	"io/ioutil"
 	"sync"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/Laughs-In-Flowers/data"
 )
 
 type Env interface {
-	Raw
 	Constructors
 	Features
+	Components
+	Entities
 	Applicator
 	Populator
 }
@@ -22,38 +25,43 @@ type Applicator interface {
 
 type Populator interface {
 	Populate([]byte) error
-	PopulateConstructors(...Constructor) error
-	PopulateYamlFiles(...string) error
+	PopulateYaml(...string) error
 	PopulateGroup(...string) error
+	PopulateComponentYaml(...string) error
+	PopulateEntityYaml(...string) error
 }
 
 type env struct {
-	Raw
+	*raw
 	Constructors
 	Features
+	Components
+	Entities
 }
 
 func Empty() Env {
 	e := &env{}
-	e.Raw = NewRaw(e)
+	e.raw = newRaw(e)
 	e.Constructors = internal
-	e.Features = NewFeatures(e)
+	e.Features = newFeatures(e)
+	e.Components = newComponents(e)
+	e.Entities = newEntities(e)
 	return e
 }
 
-func New(raw []byte, cs ...Constructor) (Env, error) {
+func New(r []byte, cs ...Constructor) (Env, error) {
 	e := Empty()
-	if err := e.PopulateConstructors(cs...); err != nil {
+	if err := e.SetConstructor(cs...); err != nil {
 		return nil, err
 	}
-	if err := e.Populate(raw); err != nil {
+	if err := e.Populate(r); err != nil {
 		return nil, err
 	}
 	return e, nil
 }
 
-func (e *env) Populate(raw []byte) error {
-	err := e.queue(raw)
+func (e *env) Populate(r []byte) error {
+	err := e.queue(r)
 	if err != nil {
 		return err
 	}
@@ -61,12 +69,7 @@ func (e *env) Populate(raw []byte) error {
 	return nil
 }
 
-func (e *env) PopulateConstructors(cs ...Constructor) error {
-	e.SetConstructor(cs...)
-	return nil
-}
-
-func (e *env) PopulateYamlFiles(files ...string) error {
+func (e *env) PopulateYaml(files ...string) error {
 	for _, file := range files {
 		read, err := ioutil.ReadFile(file)
 		if err == nil {
@@ -94,6 +97,44 @@ func (e *env) PopulateGroup(sv ...string) error {
 		}
 	}
 	return nil
+}
+
+func (e *env) PopulateComponentYaml(files ...string) error {
+	var err error
+	for _, file := range files {
+		var rcs []*RawComponent
+		var read []byte
+		read, err = ioutil.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		err = yaml.Unmarshal(read, &rcs)
+		if err != nil {
+			return err
+		}
+		err = deqComponent(e, rcs)
+	}
+	e.dequeue()
+	return err
+}
+
+func (e *env) PopulateEntityYaml(files ...string) error {
+	var err error
+	for _, file := range files {
+		var res []*RawEntity
+		var read []byte
+		read, err = ioutil.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		err = yaml.Unmarshal(read, &res)
+		if err != nil {
+			return err
+		}
+		err = deqEntity(e, res)
+	}
+	e.dequeue()
+	return err
 }
 
 func (e *env) Apply(list []string, to *data.Vector, with ...MapFn) error {

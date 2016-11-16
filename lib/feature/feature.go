@@ -296,19 +296,17 @@ type features struct {
 	has map[string]Feature
 }
 
-func NewFeatures(e *env) Features {
+func newFeatures(e *env) Features {
 	return &features{
 		e:   e,
 		has: make(map[string]Feature),
 	}
 }
 
-var FeatureExistsError = Frror("A feature named %s already exists.").Out
-
 func (fs *features) SetFeature(rf *RawFeature) error {
 	TAG := strings.ToUpper(rf.Tag)
 	if _, exists := fs.has[TAG]; exists {
-		return FeatureExistsError(TAG)
+		return ExistsError("feature", TAG)
 	}
 	fs.has[TAG] = rf.constructor.Construct(TAG, rf, fs.e)
 	return nil
@@ -324,7 +322,8 @@ func (fs *features) GetFeature(tag string) Feature {
 func (fs *features) MustGetFeature(tag string) Feature {
 	f := fs.GetFeature(tag)
 	if f == nil {
-		log.Fatalf("feature: %s not found, exiting", tag)
+		logErr := NotFoundError("feature", tag)
+		log.Fatalf(logErr.Error())
 	}
 	return f
 }
@@ -345,7 +344,7 @@ func (fs *features) List(group string) []RawFeature {
 }
 
 func NewData(n int) *data.Vector {
-	d := data.New("FEATURES")
+	d := data.New("")
 	d.Set(data.NewIntItem("feature.priority", n))
 	return d
 }

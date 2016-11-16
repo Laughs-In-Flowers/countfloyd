@@ -19,3 +19,9 @@ func (f *featureError) Out(vals ...interface{}) *featureError {
 func Frror(err string) *featureError {
 	return &featureError{err: err}
 }
+
+var (
+	ExistsError       = Frror("A %s named %s already exists.").Out
+	DoesNotExistError = Frror("A %s named %s does not exist.").Out
+	NotFoundError     = Frror("%s named %s not found, exiting").Out
+)

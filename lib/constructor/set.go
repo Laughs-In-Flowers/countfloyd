@@ -36,6 +36,27 @@ func extractKFS(e feature.Env, tag string, r ...string) []*kf {
 	return ret
 }
 
+func smoothKey(nk ...string) string {
+	var xp []string
+	for _, v := range nk {
+		spl := strings.Split(v, ".")
+		xp = append(xp, spl...)
+	}
+	var cp []string
+	for i, v := range xp {
+		if i != len(xp)-1 {
+			if v == xp[i+1] {
+				continue
+			}
+		}
+		if v == "" {
+			continue
+		}
+		cp = append(cp, v)
+	}
+	return strings.Join(cp, ".")
+}
+
 func set(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
 	raw := r.MustGetValues()
 
@@ -54,7 +75,7 @@ func set(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, fe
 					ldv := vi.List()
 					for _, ldvi := range ldv {
 						o := ldvi.Key()
-						nk := strings.Join([]string{v.k, o}, ".")
+						nk := smoothKey(v.k, o)
 						ldvi.NewKey(nk)
 					}
 					d.Set(ldv...)

@@ -12,8 +12,13 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+func stringKey(pre, tag string) string {
+	PRE, TAG := strings.ToUpper(pre), strings.ToUpper(tag)
+	return fmt.Sprintf("%s:%s", PRE, TAG)
+}
+
 func testConstructorString(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
-	ckey := fmt.Sprintf("TEST_STRING:%s", tag)
+	ckey := stringKey("test_string", tag)
 
 	ef := func() data.Item {
 		return data.NewStringItem(tag, ckey)
@@ -28,9 +33,17 @@ func testConstructorString(tag string, r *RawFeature, e Env) (Informer, Emitter,
 		NewMapper(mf)
 }
 
+func stringsKeys(l int, pre, tag string) []string {
+	var ret []string
+	key := stringKey(pre, tag)
+	for i := 1; i <= l; i++ {
+		ret = append(ret, key)
+	}
+	return ret
+}
+
 func testConstructorStrings(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
-	ckey := fmt.Sprintf("TEST_STRINGS:%s", tag)
-	ckeys := []string{ckey, ckey, ckey}
+	ckeys := stringsKeys(3, "test_strings", tag)
 
 	ef := func() data.Item {
 		return data.NewStringsItem(tag, ckeys...)
@@ -96,19 +109,19 @@ func testConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, 
 }
 
 func testConstructorVector(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
-	ckey := fmt.Sprintf("TEST_MULTI:%s", tag)
+	ckey := stringKey("test_vector", tag)
 
 	ef := func() data.Item {
 		d := data.New("")
 		d.Set(data.NewStringItem("key", ckey))
-		return data.NewVectorItem("multi", d)
+		return data.NewVectorItem("vector", d)
 	}
 
 	mf := func(d *data.Vector) {
 		d.Set(ef())
 	}
 
-	return NewInformer("CONSTRUCTOR_STRING", r.Set, tag, r.Values, []string{ckey}),
+	return NewInformer("CONSTRUCTOR_VECTOR", r.Set, tag, r.Values, []string{ckey}),
 		NewEmitter(ef),
 		NewMapper(mf)
 }
@@ -119,6 +132,36 @@ type testFeature struct {
 	Apply  string                                            `"yaml:apply"`
 	Values []string                                          `"yaml:values"`
 	fn     func(*testing.T, *testFeature, Env, *data.Vector) `"yaml:-"`
+}
+
+type testComponent struct {
+	Tag      string                                `"yaml:tag"`
+	Features []*testFeature                        `"yaml:features"`
+	fn       func(*testing.T, *testComponent, Env) `"yaml:-"`
+}
+
+func (tc *testComponent) featureKeys() []string {
+	var ret []string
+	for _, v := range tc.Features {
+		ret = append(ret, strings.ToUpper(v.Tag))
+	}
+	return ret
+}
+
+type testEntity struct {
+	Tag        string                             `"yaml:tag"`
+	Components []*testComponent                   `"yaml:features"`
+	fn         func(*testing.T, *testEntity, Env) `"yaml:-"`
+}
+
+func (te *testEntity) componentFeatureKeys(c string) []string {
+	var ret []string
+	for _, v := range te.Components {
+		if c == v.Tag {
+			ret = v.featureKeys()
+		}
+	}
+	return ret
 }
 
 func getFeature(t *testing.T, e Env, f *testFeature) Feature {
@@ -159,9 +202,11 @@ func assertEqual(t *testing.T, testKey string, have, expect []string) {
 	assertIn(t, testKey, have, expect)
 }
 
-var (
-	loc string = "./features.yaml"
+func loc(i int) string {
+	return fmt.Sprintf("./features-%d.yaml", i)
+}
 
+var (
 	additionalConstructor Constructor = NewConstructor("CONSTRUCTOR_STRINGS", 100, testConstructorStrings)
 
 	testConstructors []Constructor = []Constructor{
@@ -169,124 +214,225 @@ var (
 		NewConstructor("CONSTRUCTOR_BOOL", 700, testConstructorBool),
 		NewConstructor("CONSTRUCTOR_INT", 500, testConstructorInt),
 		NewConstructor("CONSTRUCTOR_FLOAT", 2000, testConstructorFloat),
-		DefaultConstructor("CONSTRUCTOR_MULTI", testConstructorVector),
+		DefaultConstructor("CONSTRUCTOR_VECTOR", testConstructorVector),
+	}
+
+	fna = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		si, err := feature.EmitString()
+		if err != nil {
+			t.Error(err)
+		}
+		have := []string{si.ToString()}
+		expect := []string{stringKey("test_string", f.Tag)}
+		assertEqual(t, "feature-string", have, expect)
+	}
+
+	fnb = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		si, err := feature.EmitStrings()
+		if err != nil {
+			t.Error(err)
+		}
+		have := si.ToStrings()
+		expect := stringsKeys(3, "test_strings", f.Tag)
+
+		assertEqual(t, "feature-strings", have, expect)
+	}
+
+	fnc = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		bi, err := feature.EmitBool()
+		if err != nil {
+			t.Error(err)
+		}
+		have := bi.ToBool()
+		expect := false
+		if have != expect {
+			t.Errorf("feature-bool: have %t expected %t", have, expect)
+		}
+	}
+
+	fnd = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		ii, err := feature.EmitInt()
+		if err != nil {
+			t.Error(err)
+		}
+		have := ii.ToInt()
+		expect := 9000
+		if have != expect {
+			t.Errorf("feature-int: have %d, expect %d", have, expect)
+		}
+	}
+
+	fne = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		fi, err := feature.EmitFloat()
+		if err != nil {
+			t.Error(err)
+		}
+		have := fi.ToFloat()
+		expect := 9000.0000001
+		if have != expect {
+			t.Errorf("feature-float: have %f, expect %f", have, expect)
+		}
+	}
+
+	fnf = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+		feature := getFeature(t, e, f)
+		mi, err := feature.EmitVector()
+		if err != nil {
+			t.Error(err)
+		}
+		c := mi.ToVector()
+		have := c.ToString("key")
+		expect := stringKey("test_vector", f.Tag)
+		if have != expect {
+			t.Errorf("feature-vector: have %s, expect %s", have, expect)
+		}
 	}
 
 	rawTestFeatures []*testFeature = []*testFeature{
-		{nil, "feature-string", "constructor_string", []string{"TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				si, err := feature.EmitString()
-				if err != nil {
-					t.Error(err)
-				}
-				have := []string{si.ToString()}
-				expect := []string{"TEST_STRING:FEATURE-STRING"}
-				assertEqual(t, "feature-string", have, expect)
-			},
+		{nil,
+			"feature-string",
+			"constructor_string",
+			[]string{"TEST"},
+			fna,
 		},
-		{nil, "feature-strings", "constructor_strings", []string{"TEST", "TEST", "TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				si, err := feature.EmitStrings()
-				if err != nil {
-					t.Error(err)
-				}
-				have := si.ToStrings()
-				expect := []string{"TEST_STRINGS:FEATURE-STRINGS", "TEST_STRINGS:FEATURE-STRINGS", "TEST_STRINGS:FEATURE-STRINGS"}
-				assertEqual(t, "feature-strings", have, expect)
-			},
+		{nil,
+			"feature-strings",
+			"constructor_strings",
+			[]string{"TEST", "TEST", "TEST"},
+			fnb,
 		},
-		{nil, "feature-bool", "constructor_bool", []string{"false"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				bi, err := feature.EmitBool()
-				if err != nil {
-					t.Error(err)
-				}
-				have := bi.ToBool()
-				expect := false
-				if have != expect {
-					t.Errorf("feature-bool: have %t expected %t", have, expect)
-				}
-			},
+		{nil,
+			"feature-bool",
+			"constructor_bool",
+			[]string{"false"},
+			fnc,
 		},
-		{nil, "feature-int", "constructor_int", []string{"9000"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				ii, err := feature.EmitInt()
-				if err != nil {
-					t.Error(err)
-				}
-				have := ii.ToInt()
-				expect := 9000
-				if have != expect {
-					t.Errorf("feature-int: have %d, expect %d", have, expect)
-				}
-			},
+		{nil,
+			"feature-int",
+			"constructor_int",
+			[]string{"9000"},
+			fnd,
 		},
-		{nil, "feature-float", "constructor_float", []string{"9000.0000001"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				fi, err := feature.EmitFloat()
-				if err != nil {
-					t.Error(err)
-				}
-				have := fi.ToFloat()
-				expect := 9000.0000001
-				if have != expect {
-					t.Errorf("feature-float: have %f, expect %f", have, expect)
-				}
-			},
+		{nil,
+			"feature-float",
+			"constructor_float",
+			[]string{"9000.0000001"},
+			fne,
 		},
-		{nil, "feature-multi", "constructor_multi", []string{"TEST", "TEST", "TEST"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				mi, err := feature.EmitVector()
-				if err != nil {
-					t.Error(err)
-				}
-				c := mi.ToVector()
-				have := c.ToString("key")
-				expect := "TEST_MULTI:FEATURE-MULTI"
-				if have != expect {
-					t.Errorf("feature-multi: have %s, expect %s", have, expect)
-				}
-			},
+		{nil,
+			"feature-vector",
+			"constructor_vector",
+			[]string{"TEST", "TEST", "TEST"},
+			fnf,
 		},
 	}
 
 	rawWriteTestFeatures []*testFeature = []*testFeature{
-		{[]string{"FILE"}, "feature-file-strings", "constructor_strings", []string{"A", "B", "C", "D", "E"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				si, err := feature.EmitStrings()
-				if err != nil {
-					t.Error(err)
-				}
-				have := si.ToStrings()
-				expect := []string{"TEST_STRINGS:FEATURE-FILE-STRINGS", "TEST_STRINGS:FEATURE-FILE-STRINGS", "TEST_STRINGS:FEATURE-FILE-STRINGS"}
-				assertEqual(t, "feature-file-strings", have, expect)
-			},
+		{[]string{"FILE"},
+			"feature-file-strings",
+			"constructor_strings",
+			[]string{"A", "B", "C", "D", "E"},
+			fnb,
 		},
 	}
 
 	rawSetFeatures []*testFeature = []*testFeature{
-		{[]string{"SET"}, "feature-set-strings", "constructor_strings", []string{"a", "b", "c", "4"},
-			func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
-				feature := getFeature(t, e, f)
-				si, err := feature.EmitStrings()
-				if err != nil {
-					t.Error(err)
+		{[]string{"SET"},
+			"feature-set-strings",
+			"constructor_strings",
+			[]string{"a", "b", "c", "4"},
+			fnb,
+		},
+	}
+
+	rawComponents = func(tag string) []*testComponent {
+		return []*testComponent{
+			{fmt.Sprintf("component-1-%s", tag),
+				[]*testFeature{
+					{[]string{"C-1", tag},
+						fmt.Sprintf("c-1-string-%s", tag),
+						"constructor_string",
+						[]string{"TEST"},
+						fna,
+					},
+					{[]string{"C-1", "testing", tag},
+						fmt.Sprintf("c-1-strings-%s", tag),
+						"constructor_strings",
+						[]string{"a", "b", "c", "4"},
+						fnb,
+					},
+				},
+				func(t *testing.T, tc *testComponent, e Env) {
+					cs := e.GetComponent(1, "TEST", tc.Tag)
+					tcs := cs[0]
+					assertIn(t, "component", tc.featureKeys(), tcs.Keys())
+					for _, v := range tc.Features {
+						v.fn(t, v, e, tcs)
+					}
+				},
+			},
+			{fmt.Sprintf("component-2-%s", tag),
+				[]*testFeature{
+					{[]string{"C-2", tag},
+						fmt.Sprintf("c-2-string-%s", tag),
+						"constructor_string",
+						[]string{"TEST"},
+						fna,
+					},
+					{[]string{"C-2", "testing", tag},
+						fmt.Sprintf("c-2-strings-%s", tag),
+						"constructor_strings",
+						[]string{"a", "b", "c", "4"},
+						fnb,
+					},
+				},
+				func(t *testing.T, tc *testComponent, e Env) {
+					cs := e.MustGetComponent(2, "TEST", tc.Tag)
+					tcs := cs[0]
+					assertIn(t, "component", tc.featureKeys(), tcs.Keys())
+					for _, v := range tc.Features {
+						v.fn(t, v, e, tcs)
+					}
+				},
+			},
+		}
+	}
+
+	rawEntities []*testEntity = []*testEntity{
+		{"entity-1",
+			rawComponents("e1"),
+			func(t *testing.T, te *testEntity, e Env) {
+				ent := e.GetEntity(1, "entity-1")
+				for _, v := range ent {
+					cfk := te.componentFeatureKeys(v.ToString("component.tag"))
+					assertIn(t, "entity", cfk, v.Keys())
 				}
-				have := si.ToStrings()
-				expect := []string{"TEST_STRINGS:FEATURE-SET-STRINGS", "TEST_STRINGS:FEATURE-SET-STRINGS", "TEST_STRINGS:FEATURE-SET-STRINGS"}
-				assertEqual(t, "feature-set-strings", have, expect)
+				for _, v := range te.Components {
+					v.fn(t, v, e)
+				}
+			},
+		},
+		{"entity-2",
+			rawComponents("e2"),
+			func(t *testing.T, te *testEntity, e Env) {
+				ent := e.MustGetEntity(2, "entity-2")
+				for _, v := range ent {
+					cfk := te.componentFeatureKeys(v.ToString("component.tag"))
+					assertIn(t, "entity", cfk, v.Keys())
+				}
+				for _, v := range te.Components {
+					v.fn(t, v, e)
+				}
 			},
 		},
 	}
 
-	prePackedFeatureSet string
+	packedFeatureSet string
 )
 
 func allFeatures() []*testFeature {
@@ -309,13 +455,13 @@ func testable(fs []*testFeature) ([]string, []*testFeature) {
 	return reta, retb
 }
 
-func writeYaml(p string) error {
-	f, err := data.Open(loc)
+func writeYaml(p string, i interface{}) error {
+	f, err := data.Open(p)
 	if err != nil {
 		return err
 	}
 
-	b, err := yaml.Marshal(&rawWriteTestFeatures)
+	b, err := yaml.Marshal(&i)
 	if err != nil {
 		return err
 	}
@@ -421,10 +567,10 @@ func testOfFeature(t *testing.T, e Env) {
 	}
 }
 
-func testFeatureGroup(t *testing.T) {
+func testOfFeatureGroup(t *testing.T) {
 	e := Empty()
 
-	e.PopulateConstructors(testConstructors...)
+	e.SetConstructor(testConstructors...)
 
 	b, err := yaml.Marshal(&rawSetFeatures)
 	if err != nil {
@@ -455,37 +601,87 @@ func testFeatureGroup(t *testing.T) {
 		}
 	}
 
-	prePackedFeatureSet = g1v
+	packedFeatureSet = g1v
 	g1, g2 = nil, nil
 	e = nil
+}
+
+func testOfComponent(t *testing.T, e Env) {
+	list := e.ListComponents()
+	var tags []string
+	for _, v := range list {
+		tags = append(tags, v.Tag())
+	}
+	for _, v := range rawComponents("rc") {
+		assertIn(t, "component", []string{v.Tag}, tags)
+		v.fn(t, v, e)
+	}
+}
+
+func testOfEntity(t *testing.T, e Env) {
+	list := e.ListEntities()
+	var tags []string
+	for _, v := range list {
+		tags = append(tags, v.Tag())
+	}
+	for _, v := range rawEntities {
+		assertIn(t, "entity", []string{v.Tag}, tags)
+		v.fn(t, v, e)
+	}
 }
 
 func testEnv(t *testing.T) Env {
 	SetConstructor(additionalConstructor)
 
-	testFeatureGroup(t)
-	err := writeYaml(loc)
+	testOfFeatureGroup(t)
+
+	loc1 := loc(1)
+	err := writeYaml(loc1, rawWriteTestFeatures)
 	if err != nil {
 		t.Error(err)
 	}
-	defer deleteYaml(loc)
+	defer deleteYaml(loc1)
 
 	b, err := yaml.Marshal(&rawTestFeatures)
 	if err != nil {
 		t.Error(err)
 	}
 
-	e, err := New(b, testConstructors...)
+	e, err := New(b)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = e.PopulateYamlFiles(loc)
+	err = e.PopulateYaml(loc1)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = e.PopulateGroup(prePackedFeatureSet)
+	err = e.PopulateGroup(packedFeatureSet)
+	if err != nil {
+		t.Error(err)
+	}
+
+	loc2 := loc(2)
+	err = writeYaml(loc2, rawComponents("rc"))
+	if err != nil {
+		t.Error(err)
+	}
+	defer deleteYaml(loc2)
+
+	err = e.PopulateComponentYaml(loc2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	loc3 := loc(3)
+	err = writeYaml(loc3, rawEntities)
+	if err != nil {
+		t.Error(err)
+	}
+	defer deleteYaml(loc3)
+
+	err = e.PopulateEntityYaml(loc3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -493,21 +689,28 @@ func testEnv(t *testing.T) Env {
 	return e
 }
 
-func TestWhole(t *testing.T) {
+func TestPackage(t *testing.T) {
 	e := testEnv(t)
 
+	testOfComponent(t, e)
+
+	testOfEntity(t, e)
+
 	a, f := testable(allFeatures())
+
+	xmfn := func(d *data.Vector) {
+		d.SetString("extra", "extra")
+	}
 
 	for h := 0; h <= 100; h++ {
 		for i := 7; i <= 12; i++ {
 			d := NewData(i)
 
-			e.Apply(a, d)
+			e.Apply(a, d, xmfn)
 
 			for _, ft := range f {
 				ft.fn(t, ft, e, d)
 			}
 		}
 	}
-
 }

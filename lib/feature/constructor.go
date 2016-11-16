@@ -56,13 +56,11 @@ func SetConstructor(cns ...Constructor) error {
 	return internal.SetConstructor(cns...)
 }
 
-var ConstructorExistsError = Frror("constructore %s exists").Out
-
 func (c *constructors) SetConstructor(cns ...Constructor) error {
 	for _, cn := range cns {
 		tag := cn.Tag()
 		if _, exists := c.has[tag]; exists {
-			return ConstructorExistsError(tag)
+			return ExistsError("construct", tag)
 		}
 		c.has[tag] = cn
 	}
