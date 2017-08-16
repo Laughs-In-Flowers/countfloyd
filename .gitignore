@@ -28,7 +28,7 @@ Godeps/*
 
 countfloyd
 lib/cfs/cfs
-example/example
+resources/example/example
 _back
 *.out
 *.old.*
