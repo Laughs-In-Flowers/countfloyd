@@ -171,8 +171,6 @@ func connect(s *sonnect, service, action string, d *data.Vector) flip.ExitStatus
 	L.Print(resp)
 
 	return flip.ExitSuccess
-
-	return flip.ExitSuccess
 }
 
 func onError(err error) flip.ExitStatus {

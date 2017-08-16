@@ -257,10 +257,10 @@ var localHandlers []*Handler = []*Handler{
 		func(s *Server, r *Request) []byte {
 			resp := EmptyResponse()
 			d := r.Data
-			qf := d.ToString("query_feature")
-			f := s.GetFeature(qf)
+			q := d.ToString("query_feature")
+			f := s.GetFeature(q)
 			if f == nil {
-				resp.Error = NoItemError("feature", qf)
+				resp.Error = NoItemError("feature", q)
 			}
 			if f != nil {
 				si := data.NewStringsItem("set", f.Group()...)
@@ -277,20 +277,20 @@ var localHandlers []*Handler = []*Handler{
 		func(s *Server, r *Request) []byte {
 			resp := EmptyResponse()
 			d := r.Data
-			qc := d.ToString("query_component")
-			cl := s.ListComponents()
-			var gc feature.Component
-			for _, v := range cl {
-				if qc == v.Tag() {
-					gc = v
+			q := d.ToString("query_component")
+			l := s.ListComponents()
+			var c feature.Component
+			for _, v := range l {
+				if q == v.Tag() {
+					c = v
 				}
 			}
-			if gc == nil {
-				resp.Error = NoItemError("component", qc)
+			if c == nil {
+				resp.Error = NoItemError("component", q)
 			}
-			if gc != nil {
-				di := data.NewStringsItem("defines", gc.Defines()...)
-				fi := data.NewStringsItem("features", gc.Features()...)
+			if c != nil {
+				di := data.NewStringsItem("defines", c.Defines()...)
+				fi := data.NewStringsItem("features", c.Features()...)
 				d.Set(di, fi)
 				resp.Data = d
 			}
@@ -302,20 +302,20 @@ var localHandlers []*Handler = []*Handler{
 		func(s *Server, r *Request) []byte {
 			resp := EmptyResponse()
 			d := r.Data
-			qe := d.ToString("query_entity")
-			el := s.ListEntities()
-			var ge feature.Entity
-			for _, v := range el {
-				if qe == v.Tag() {
-					ge = v
+			q := d.ToString("query_entity")
+			l := s.ListEntities()
+			var e feature.Entity
+			for _, v := range l {
+				if q == v.Tag() {
+					e = v
 				}
 			}
-			if ge == nil {
-				resp.Error = NoItemError("entity", qe)
+			if e == nil {
+				resp.Error = NoItemError("entity", q)
 			}
-			if ge != nil {
-				di := data.NewStringsItem("set", ge.Defines()...)
-				ci := data.NewStringsItem("apply", ge.Components()...)
+			if e != nil {
+				di := data.NewStringsItem("set", e.Defines()...)
+				ci := data.NewStringsItem("apply", e.Components()...)
 				d.Set(di, ci)
 				resp.Data = d
 			}
