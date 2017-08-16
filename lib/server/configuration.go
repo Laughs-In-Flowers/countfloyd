@@ -176,12 +176,30 @@ func sFeatureEnv(s *Server) error {
 	return nil
 }
 
-func SetPopulateFiles(files ...string) Config {
+func SetPopulateFeatures(files ...string) Config {
 	return NewConfig(2000, func(s *Server) error {
 		for _, f := range files {
 			s.Printf("loading features from %s", f)
 		}
-		return s.PopulateYamlFiles(files...)
+		return s.PopulateYaml(files...)
+	})
+}
+
+func SetPopulateComponents(files ...string) Config {
+	return NewConfig(2001, func(s *Server) error {
+		for _, f := range files {
+			s.Printf("loading features from %s", f)
+		}
+		return s.PopulateComponentYaml(files...)
+	})
+}
+
+func SetPopulateEntities(files ...string) Config {
+	return NewConfig(2002, func(s *Server) error {
+		for _, f := range files {
+			s.Printf("loading features from %s", f)
+		}
+		return s.PopulateEntityYaml(files...)
 	})
 }
 

@@ -121,7 +121,7 @@ func (s *Server) Serve() {
 	}
 }
 
-var NoFeatureError = Srror("No feature named %s available.").Out
+var NoItemError = Srror("No %s with the tag %s is available.").Out
 
 var (
 	NoServiceError     = Srror("no service named %s available").Out
@@ -190,11 +190,43 @@ func (h *Handlers) SetHandle(hs ...*Handler) {
 	}
 }
 
-func NewDataFrom(m *data.Vector, e feature.Env) *data.Vector {
+func applyRespond(a Action) HandlerFunc {
+	return func(s *Server, r *Request) []byte {
+		resp := EmptyResponse()
+		d := r.Data
+		resp.Data = NewDataFrom(a, d, s)
+		return resp.ToByte()
+	}
+}
+
+func NewDataFrom(a Action, m *data.Vector, e feature.Env) *data.Vector {
 	n := m.ToInt("meta.number")
 	d := feature.NewData(n)
-	a := m.ToStrings("meta.features")
-	e.Apply(a, d)
+
+	switch {
+	case actionIs(a, APPLYFEATURES):
+		f := m.ToStrings("meta.features")
+		e.Apply(f, d)
+	case actionIs(a, APPLYCOMPONENT):
+		id := m.ToString("meta.id")
+		c := m.ToString("meta.component")
+		cs := e.GetComponent(n, id, c)
+		d = cs[0]
+	case actionIs(a, APPLYCOMPONENTS):
+		id := m.ToString("meta.id")
+		cs := m.ToStrings("meta.components")
+		css := e.GetComponent(n, id, cs...)
+		for _, v := range css {
+			d.SetVector(v.ToString("component.id"), v)
+		}
+	case actionIs(a, APPLYENTITY):
+		en := m.ToString("meta.entity")
+		ent := e.GetEntity(n, en)
+		for _, v := range ent {
+			d.SetVector(v.ToString("component.id"), v)
+		}
+	}
+
 	return d
 }
 
@@ -228,7 +260,7 @@ var localHandlers []*Handler = []*Handler{
 			qf := d.ToString("query_feature")
 			f := s.GetFeature(qf)
 			if f == nil {
-				resp.Error = NoFeatureError(qf)
+				resp.Error = NoItemError("feature", qf)
 			}
 			if f != nil {
 				si := data.NewStringsItem("set", f.Group()...)
@@ -240,78 +272,101 @@ var localHandlers []*Handler = []*Handler{
 			return resp.ToByte()
 		}),
 	NewHandler(
+		"query",
+		"component",
+		func(s *Server, r *Request) []byte {
+			resp := EmptyResponse()
+			d := r.Data
+			qc := d.ToString("query_component")
+			cl := s.ListComponents()
+			var gc feature.Component
+			for _, v := range cl {
+				if qc == v.Tag() {
+					gc = v
+				}
+			}
+			if gc == nil {
+				resp.Error = NoItemError("component", qc)
+			}
+			if gc != nil {
+				di := data.NewStringsItem("defines", gc.Defines()...)
+				fi := data.NewStringsItem("features", gc.Features()...)
+				d.Set(di, fi)
+				resp.Data = d
+			}
+			return resp.ToByte()
+		}),
+	NewHandler(
+		"query",
+		"entity",
+		func(s *Server, r *Request) []byte {
+			resp := EmptyResponse()
+			d := r.Data
+			qe := d.ToString("query_entity")
+			el := s.ListEntities()
+			var ge feature.Entity
+			for _, v := range el {
+				if qe == v.Tag() {
+					ge = v
+				}
+			}
+			if ge == nil {
+				resp.Error = NoItemError("entity", qe)
+			}
+			if ge != nil {
+				di := data.NewStringsItem("set", ge.Defines()...)
+				ci := data.NewStringsItem("apply", ge.Components()...)
+				d.Set(di, ci)
+				resp.Data = d
+			}
+			return resp.ToByte()
+		}),
+	NewHandler(
 		"data",
 		"populate_from_files",
 		func(s *Server, r *Request) []byte {
 			resp := EmptyResponse()
 			d := r.Data
-			files := d.ToStrings("files")
-			resp.Error = s.PopulateYamlFiles(files...)
+			if fs := d.ToStrings("features"); fs != nil && len(fs) > 0 {
+				resp.Error = s.PopulateYaml(fs...)
+				if resp.Error != nil {
+					return resp.ToByte()
+				}
+			}
+			if cs := d.ToStrings("components"); cs != nil && len(cs) > 0 {
+				resp.Error = s.PopulateComponentYaml(cs...)
+				if resp.Error != nil {
+					return resp.ToByte()
+				}
+			}
+			if es := d.ToStrings("entities"); es != nil && len(es) > 0 {
+				resp.Error = s.PopulateYaml(es...)
+				if resp.Error != nil {
+					return resp.ToByte()
+				}
+			}
 			return resp.ToByte()
 		}),
 	NewHandler(
 		"data",
-		"apply",
-		func(s *Server, r *Request) []byte {
-			resp := EmptyResponse()
-			d := r.Data
-			resp.Data = NewDataFrom(d, s)
-			return resp.ToByte()
-		}),
+		"apply_features",
+		applyRespond(APPLYFEATURES),
+	),
 	NewHandler(
 		"data",
-		"apply_to_file",
-		func(s *Server, r *Request) []byte {
-			resp := EmptyResponse()
-			d := r.Data
-			path := d.ToString("file")
-
-			fileData := func(path string) (*os.File, []byte, error) {
-				fl, err := data.Open(path)
-				if err != nil {
-					return nil, nil, err
-				}
-				var n int64
-				if fi, err := fl.Stat(); err == nil {
-					if size := fi.Size(); size < 1e9 {
-						n = size
-					}
-				}
-				b := make([]byte, n)
-				_, err = fl.Read(b)
-				if err != nil {
-					return nil, nil, err
-				}
-				return fl, b, nil
-			}
-
-			fl, b, err := fileData(path)
-			if err != nil {
-				resp.Error = err
-			}
-
-			err = d.UnmarshalJSON(b)
-			if err != nil {
-				resp.Error = err
-			}
-
-			existing := d.Clone("file", "action")
-
-			resp.Data = NewDataFrom(existing, s)
-
-			existing.Merge(resp.Data)
-
-			var afb []byte
-			afb, err = existing.MarshalJSON()
-			if err != nil {
-				resp.Error = err
-			}
-
-			fl.Truncate(0)
-			fl.WriteAt(afb, 0)
-			fl.Sync()
-			return resp.ToByte()
-		}),
+		"apply_component",
+		applyRespond(APPLYCOMPONENT),
+	),
+	NewHandler(
+		"data",
+		"apply_components",
+		applyRespond(APPLYCOMPONENTS),
+	),
+	NewHandler(
+		"data",
+		"apply_entity",
+		applyRespond(APPLYENTITY),
+	),
 }
 
 func (s *Server) process(r []byte) []byte {

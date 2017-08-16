@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
@@ -17,34 +15,19 @@ import (
 )
 
 type Options struct {
-	LogFormatter string
-	Socket       string
-	Listeners    int
-	dir, files   string
-	Run          bool
+	LogFormatter                  string
+	Socket                        string
+	Listeners                     int
+	Pfeature, Pcomponent, Pentity string
+	Run                           bool
 }
 
-func (o *Options) Files() []string {
+func unpackFiles(f string) []string {
 	var ret []string
-
-	if o.dir != "" {
-		df, err := ioutil.ReadDir(o.dir)
-		if err != nil {
-			L.Fatal(err.Error())
-		}
-
-		for _, f := range df {
-			ret = append(ret, filepath.Join(o.dir, f.Name()))
-		}
+	lf := strings.Split(f, ",")
+	for _, f := range lf {
+		ret = append(ret, f)
 	}
-
-	if o.files != "" {
-		lf := strings.Split(o.files, ",")
-		for _, f := range lf {
-			ret = append(ret, f)
-		}
-	}
-
 	return ret
 }
 
@@ -53,8 +36,9 @@ func topFlags(o *Options) *flip.FlagSet {
 	fs.StringVar(&o.LogFormatter, "logFormatter", o.LogFormatter, "Sets the environment logger formatter.")
 	fs.StringVar(&o.Socket, "socket", o.Socket, "Set the server socket path.")
 	fs.IntVar(&o.Listeners, "listeners", o.Listeners, "Set the number of listeners at the server socket.")
-	fs.StringVar(&o.dir, "populateDir", o.dir, "Populate the feature env from files in the provided directory.")
-	fs.StringVar(&o.files, "populateFiles", o.files, "Populate the feature env from the provided files.")
+	fs.StringVar(&o.Pfeature, "features", o.Pfeature, "Attempt to load features from specified files")
+	fs.StringVar(&o.Pcomponent, "components", o.Pcomponent, "Attempt to load components from specified files")
+	fs.StringVar(&o.Pentity, "entities", o.Pentity, "Attempt to load entities from specified files")
 	return fs
 }
 
@@ -82,9 +66,18 @@ var txx []tex = []tex{
 		}
 	},
 	func(o *Options) {
-		pf := o.Files()
-		if len(pf) > 0 {
-			S.Add(server.SetPopulateFiles(pf...))
+		switch {
+		case o.Pfeature != "":
+			fs := unpackFiles(o.Pfeature)
+			S.Add(server.SetPopulateFeatures(fs...))
+			fallthrough
+		case o.Pcomponent != "":
+			fs := unpackFiles(o.Pcomponent)
+			S.Add(server.SetPopulateComponents(fs...))
+			fallthrough
+		case o.Pentity != "":
+			fs := unpackFiles(o.Pentity)
+			S.Add(server.SetPopulateEntities(fs...))
 		}
 	},
 }
@@ -160,9 +153,5 @@ func init() {
 		server.SetFeatureEnvironment(E),
 	)
 	flip.RegisterGroup("top", -1, TopCommand())
-	flip.RegisterGroup(
-		"run",
-		1,
-		StartCommand(),
-	)
+	flip.RegisterGroup("run", 1, StartCommand())
 }

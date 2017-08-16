@@ -8,21 +8,28 @@ import (
 
 type Entity interface {
 	Tagger
+	Defines() []string
 	Components() []string
 }
 
 type RawEntity struct {
 	Tag        string
+	Defines    []*RawFeature
 	Components []*RawComponent
 }
 
 type entity struct {
 	tag        string
+	defines    []string
 	components []string
 }
 
 func (e *entity) Tag() string {
 	return e.tag
+}
+
+func (e *entity) Defines() []string {
+	return e.defines
 }
 
 func (e *entity) Components() []string {
@@ -52,11 +59,15 @@ func (e *entities) SetRawEntity(res ...*RawEntity) error {
 	var ex []Entity
 	for _, v := range res {
 		tag := v.Tag
+		var d []string
+		for _, vd := range v.Defines {
+			d = append(d, vd.Tag)
+		}
 		var cs []string
 		for _, vv := range v.Components {
 			cs = append(cs, vv.Tag)
 		}
-		ent := &entity{tag, cs}
+		ent := &entity{tag, d, cs}
 		ex = append(ex, ent)
 	}
 	return e.SetEntity(ex...)

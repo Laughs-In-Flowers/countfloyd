@@ -138,6 +138,13 @@ func isAction(b []byte) bool {
 	return false
 }
 
+func actionIs(a, b Action) bool {
+	if bytes.Compare(a, b) == 0 {
+		return true
+	}
+	return false
+}
+
 func (a Action) String() string {
 	return string(a)
 }
@@ -148,12 +155,17 @@ var (
 	QUIT              = []byte("quit")
 	STATUS            = []byte("status")
 	FEATURE           = []byte("feature")
+	COMPONENT         = []byte("component")
+	ENTITY            = []byte("entity")
 	POPULATEFROMFILES = []byte("populate_from_files")
-	APPLY             = []byte("apply")
-	APPLYTOFILE       = []byte("apply_to_file")
+	APPLYFEATURES     = []byte("apply_features")
+	APPLYCOMPONENT    = []byte("apply_component")
+	APPLYCOMPONENTS   = []byte("apply_components")
+	APPLYENTITY       = []byte("apply_entity")
 
 	actions []Action = []Action{
-		PING, QUIT, STATUS, FEATURE, POPULATEFROMFILES, APPLY, APPLYTOFILE,
+		PING, QUIT, STATUS, FEATURE, POPULATEFROMFILES, APPLYFEATURES,
+		APPLYCOMPONENT, APPLYCOMPONENTS, APPLYENTITY,
 	}
 )
 

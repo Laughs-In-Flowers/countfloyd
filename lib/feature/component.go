@@ -8,21 +8,28 @@ import (
 
 type Component interface {
 	Tagger
+	Defines() []string
 	Features() []string
 }
 
 type RawComponent struct {
 	Tag      string
+	Defines  []*RawFeature
 	Features []*RawFeature
 }
 
 type component struct {
 	tag      string
+	defines  []string
 	features []string
 }
 
 func (c *component) Tag() string {
 	return c.tag
+}
+
+func (c *component) Defines() []string {
+	return c.defines
 }
 
 func (c *component) Features() []string {
@@ -52,11 +59,14 @@ func (c *components) SetRawComponent(rcs ...*RawComponent) error {
 	var s []Component
 	for _, v := range rcs {
 		t := v.Tag
-		var f []string
-		for _, vv := range v.Features {
-			f = append(f, vv.Tag)
+		var d, f []string
+		for _, vd := range v.Defines {
+			d = append(d, vd.Tag)
 		}
-		s = append(s, &component{t, f})
+		for _, vf := range v.Features {
+			f = append(f, vf.Tag)
+		}
+		s = append(s, &component{t, d, f})
 	}
 	return c.SetComponent(s...)
 }

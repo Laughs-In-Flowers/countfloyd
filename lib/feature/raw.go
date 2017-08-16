@@ -73,7 +73,10 @@ func (r *raw) queue(in []byte) error {
 
 func deqComponent(e *env, rcs []*RawComponent) error {
 	for _, rc := range rcs {
-		err := e.addRaw(rc.Features...)
+		var fs []*RawFeature
+		fs = append(fs, rc.Defines...)
+		fs = append(fs, rc.Features...)
+		err := e.addRaw(fs...)
 		if err != nil {
 			return err
 		}
@@ -83,7 +86,11 @@ func deqComponent(e *env, rcs []*RawComponent) error {
 
 func deqEntity(e *env, res []*RawEntity) error {
 	for _, re := range res {
-		err := deqComponent(e, re.Components)
+		err := e.addRaw(re.Defines...)
+		if err != nil {
+			return err
+		}
+		err = deqComponent(e, re.Components)
 		if err != nil {
 			return err
 		}

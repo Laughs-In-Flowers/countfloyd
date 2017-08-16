@@ -415,14 +415,14 @@ func testEnv(t *testing.T) feature.Env {
 		t.Error(err)
 	}
 
-	err = e.PopulateConstructors(customConstructor)
+	err = e.SetConstructor(customConstructor)
 
 	err = e.Populate(b)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = e.PopulateYamlFiles(loc)
+	err = e.PopulateYaml(loc)
 	if err != nil {
 		t.Error(err)
 	}

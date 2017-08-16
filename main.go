@@ -10,10 +10,20 @@ import (
 )
 
 var (
-	C          *flip.Commander
-	L          log.Logger
-	currentDir string
+	versionPackage string = path.Base(os.Args[0])
+	versionTag     string = "No Tag"
+	versionHash    string = "No Hash"
+	versionDate    string = "No Date"
+	C              *flip.Commander
+	L              log.Logger
+	currentDir     string
 )
+
+func main() {
+	ctx := context.Background()
+	C.Execute(ctx, os.Args)
+	os.Exit(0)
+}
 
 func init() {
 	currentDir, _ = os.Getwd()
@@ -24,10 +34,4 @@ func init() {
 	flip.RegisterGroup("top", -1, TopCommand())
 	flip.RegisterGroup("control", 1, StartCommand(), StopCommand(), StatusCommand(), QueryCommand())
 	flip.RegisterGroup("action", 2, PopulateCommand(), ApplyCommand())
-}
-
-func main() {
-	ctx := context.Background()
-	C.Execute(ctx, os.Args)
-	os.Exit(0)
 }

@@ -62,6 +62,20 @@ func StatusResponse(s *Server) *Response {
 	fs := taggedFromRawFeature(lf...)
 	d.Set(data.NewStringItem("features", strings.Join(fs, ",")))
 
+	cm := s.ListComponents()
+	var cml []string
+	for _, v := range cm {
+		cml = append(cml, v.Tag())
+	}
+	d.Set(data.NewStringItem("components", strings.Join(cml, ",")))
+
+	el := s.ListEntities()
+	var etl []string
+	for _, v := range el {
+		etl = append(etl, v.Tag())
+	}
+	d.Set(data.NewStringItem("entities", strings.Join(etl, ",")))
+
 	return &Response{
 		nil, d,
 	}

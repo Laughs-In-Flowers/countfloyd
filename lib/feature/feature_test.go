@@ -17,7 +17,7 @@ func stringKey(pre, tag string) string {
 	return fmt.Sprintf("%s:%s", PRE, TAG)
 }
 
-func testConstructorString(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorString(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	ckey := stringKey("test_string", tag)
 
 	ef := func() data.Item {
@@ -42,7 +42,7 @@ func stringsKeys(l int, pre, tag string) []string {
 	return ret
 }
 
-func testConstructorStrings(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorStrings(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	ckeys := stringsKeys(3, "test_strings", tag)
 
 	ef := func() data.Item {
@@ -58,7 +58,7 @@ func testConstructorStrings(tag string, r *RawFeature, e Env) (Informer, Emitter
 		NewMapper(mf)
 }
 
-func testConstructorBool(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorBool(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	ef := func() data.Item {
 		return data.NewBoolItem(tag, false)
 	}
@@ -72,7 +72,7 @@ func testConstructorBool(tag string, r *RawFeature, e Env) (Informer, Emitter, M
 		NewMapper(mf)
 }
 
-func testConstructorInt(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorInt(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	values := r.MustGetValues()
 	v := values[0]
 	vn, _ := strconv.Atoi(v)
@@ -90,7 +90,7 @@ func testConstructorInt(tag string, r *RawFeature, e Env) (Informer, Emitter, Ma
 		NewMapper(mf)
 }
 
-func testConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	values := r.MustGetValues()
 	v := values[0]
 	vn, _ := strconv.ParseFloat(v, 64)
@@ -108,7 +108,7 @@ func testConstructorFloat(tag string, r *RawFeature, e Env) (Informer, Emitter, 
 		NewMapper(mf)
 }
 
-func testConstructorVector(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
+func tConstructorVector(tag string, r *RawFeature, e Env) (Informer, Emitter, Mapper) {
 	ckey := stringKey("test_vector", tag)
 
 	ef := func() data.Item {
@@ -126,21 +126,22 @@ func testConstructorVector(tag string, r *RawFeature, e Env) (Informer, Emitter,
 		NewMapper(mf)
 }
 
-type testFeature struct {
-	Set    []string                                          `"yaml:set"`
-	Tag    string                                            `"yaml:tag"`
-	Apply  string                                            `"yaml:apply"`
-	Values []string                                          `"yaml:values"`
-	fn     func(*testing.T, *testFeature, Env, *data.Vector) `"yaml:-"`
+type tFeature struct {
+	Set    []string                                       `"yaml:set"`
+	Tag    string                                         `"yaml:tag"`
+	Apply  string                                         `"yaml:apply"`
+	Values []string                                       `"yaml:values"`
+	fn     func(*testing.T, *tFeature, Env, *data.Vector) `"yaml:-"`
 }
 
-type testComponent struct {
-	Tag      string                                `"yaml:tag"`
-	Features []*testFeature                        `"yaml:features"`
-	fn       func(*testing.T, *testComponent, Env) `"yaml:-"`
+type tComponent struct {
+	Tag      string                             `"yaml:tag"`
+	Defines  []*tFeature                        `"yaml:defines"`
+	Features []*tFeature                        `"yaml:features"`
+	fn       func(*testing.T, *tComponent, Env) `"yaml:-"`
 }
 
-func (tc *testComponent) featureKeys() []string {
+func (tc *tComponent) featureKeys() []string {
 	var ret []string
 	for _, v := range tc.Features {
 		ret = append(ret, strings.ToUpper(v.Tag))
@@ -148,13 +149,14 @@ func (tc *testComponent) featureKeys() []string {
 	return ret
 }
 
-type testEntity struct {
-	Tag        string                             `"yaml:tag"`
-	Components []*testComponent                   `"yaml:features"`
-	fn         func(*testing.T, *testEntity, Env) `"yaml:-"`
+type tEntity struct {
+	Tag        string                          `"yaml:tag"`
+	Defines    []*tFeature                     `"yaml:defines"`
+	Components []*tComponent                   `"yaml:features"`
+	fn         func(*testing.T, *tEntity, Env) `"yaml:-"`
 }
 
-func (te *testEntity) componentFeatureKeys(c string) []string {
+func (te *tEntity) componentFeatureKeys(c string) []string {
 	var ret []string
 	for _, v := range te.Components {
 		if c == v.Tag {
@@ -164,7 +166,7 @@ func (te *testEntity) componentFeatureKeys(c string) []string {
 	return ret
 }
 
-func getFeature(t *testing.T, e Env, f *testFeature) Feature {
+func getFeature(t *testing.T, e Env, f *tFeature) Feature {
 	tag := strings.ToUpper(f.Tag)
 	feature := e.GetFeature(tag)
 	if feature == nil {
@@ -207,79 +209,86 @@ func loc(i int) string {
 }
 
 var (
-	additionalConstructor Constructor = NewConstructor("CONSTRUCTOR_STRINGS", 100, testConstructorStrings)
+	additionalConstructor Constructor = NewConstructor("CONSTRUCTOR_STRINGS", 100, tConstructorStrings)
 
 	testConstructors []Constructor = []Constructor{
-		NewConstructor("CONSTRUCTOR_STRING", 47, testConstructorString),
-		NewConstructor("CONSTRUCTOR_BOOL", 700, testConstructorBool),
-		NewConstructor("CONSTRUCTOR_INT", 500, testConstructorInt),
-		NewConstructor("CONSTRUCTOR_FLOAT", 2000, testConstructorFloat),
-		DefaultConstructor("CONSTRUCTOR_VECTOR", testConstructorVector),
+		NewConstructor("CONSTRUCTOR_STRING", 47, tConstructorString),
+		NewConstructor("CONSTRUCTOR_BOOL", 700, tConstructorBool),
+		NewConstructor("CONSTRUCTOR_INT", 500, tConstructorInt),
+		NewConstructor("CONSTRUCTOR_FLOAT", 2000, tConstructorFloat),
+		DefaultConstructor("CONSTRUCTOR_VECTOR", tConstructorVector),
 	}
 
-	fna = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fna = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		si, err := feature.EmitString()
 		if err != nil {
 			t.Error(err)
 		}
-		have := []string{si.ToString()}
-		expect := []string{stringKey("test_string", f.Tag)}
+		sit := si.ToString()
+		have := []string{sit, sit}
+		sk := stringKey("test_string", f.Tag)
+		sd := d.ToString(strings.ToUpper(f.Tag))
+		expect := []string{sk, sd}
 		assertEqual(t, "feature-string", have, expect)
 	}
 
-	fnb = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fnb = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		si, err := feature.EmitStrings()
 		if err != nil {
 			t.Error(err)
 		}
-		have := si.ToStrings()
-		expect := stringsKeys(3, "test_strings", f.Tag)
 
-		assertEqual(t, "feature-strings", have, expect)
+		have := si.ToStrings()
+
+		expect1 := stringsKeys(3, "test_strings", f.Tag)
+		assertEqual(t, "feature-strings", have, expect1)
+		expect2 := d.ToStrings(strings.ToUpper(f.Tag))
+		assertEqual(t, "feature-strings", have, expect2)
 	}
 
-	fnc = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fnc = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		bi, err := feature.EmitBool()
 		if err != nil {
 			t.Error(err)
 		}
 		have := bi.ToBool()
-		expect := false
+		expect := d.ToBool(strings.ToUpper(f.Tag))
+
 		if have != expect {
 			t.Errorf("feature-bool: have %t expected %t", have, expect)
 		}
 	}
 
-	fnd = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fnd = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		ii, err := feature.EmitInt()
 		if err != nil {
 			t.Error(err)
 		}
 		have := ii.ToInt()
-		expect := 9000
+		expect := d.ToInt(strings.ToUpper(f.Tag))
 		if have != expect {
 			t.Errorf("feature-int: have %d, expect %d", have, expect)
 		}
 	}
 
-	fne = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fne = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		fi, err := feature.EmitFloat()
 		if err != nil {
 			t.Error(err)
 		}
 		have := fi.ToFloat()
-		expect := 9000.0000001
+		expect := d.ToFloat(strings.ToUpper(f.Tag))
 		if have != expect {
 			t.Errorf("feature-float: have %f, expect %f", have, expect)
 		}
 	}
 
-	fnf = func(t *testing.T, f *testFeature, e Env, d *data.Vector) {
+	fnf = func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
 		feature := getFeature(t, e, f)
 		mi, err := feature.EmitVector()
 		if err != nil {
@@ -293,7 +302,7 @@ var (
 		}
 	}
 
-	rawTestFeatures []*testFeature = []*testFeature{
+	rawTestFeatures []*tFeature = []*tFeature{
 		{nil,
 			"feature-string",
 			"constructor_string",
@@ -332,7 +341,7 @@ var (
 		},
 	}
 
-	rawWriteTestFeatures []*testFeature = []*testFeature{
+	rawWriteTestFeatures []*tFeature = []*tFeature{
 		{[]string{"FILE"},
 			"feature-file-strings",
 			"constructor_strings",
@@ -341,7 +350,7 @@ var (
 		},
 	}
 
-	rawSetFeatures []*testFeature = []*testFeature{
+	rawSetFeatures []*tFeature = []*tFeature{
 		{[]string{"SET"},
 			"feature-set-strings",
 			"constructor_strings",
@@ -350,10 +359,66 @@ var (
 		},
 	}
 
-	rawComponents = func(tag string) []*testComponent {
-		return []*testComponent{
+	rawDefines = func(tag string) []*tFeature {
+		return []*tFeature{
+			{[]string{tag},
+				fmt.Sprintf("%s-defines", tag),
+				"constructor_strings",
+				[]string{"a", "b", "c", "4"},
+				func(t *testing.T, f *tFeature, e Env, d *data.Vector) {
+					feature := getFeature(t, e, f)
+					si, err := feature.EmitStrings()
+					if err != nil {
+						t.Error(err)
+					}
+
+					have := si.ToStrings()
+					expect := stringsKeys(3, "test_strings", f.Tag)
+
+					assertEqual(t, "feature-strings", have, expect)
+				},
+			},
+		}
+	}
+
+	gc = func(tag string, e Env) Component {
+		lc := e.ListComponents()
+		for _, v := range lc {
+			if v.Tag() == tag {
+				return v
+			}
+		}
+		return nil
+	}
+
+	ct = func(idx int, name string, fn func(int, string, ...string) []*data.Vector) func(*testing.T, *tComponent, Env) {
+		return func(t *testing.T, tc *tComponent, e Env) {
+			cs := fn(idx, name, tc.Tag)
+			tcs := cs[0]
+			assertIn(t, "component", tc.featureKeys(), tcs.Keys())
+
+			var df []string
+			for _, v := range tc.Defines {
+				df = append(df, v.Tag)
+				v.fn(t, v, e, tcs)
+			}
+			cc := gc(tc.Tag, e)
+			if cc == nil {
+				t.Error("expected component but got nil")
+			}
+			assertEqual(t, "component", df, cc.Defines())
+
+			for _, v := range tc.Features {
+				v.fn(t, v, e, tcs)
+			}
+		}
+	}
+
+	rawComponents = func(tag string) []*tComponent {
+		return []*tComponent{
 			{fmt.Sprintf("component-1-%s", tag),
-				[]*testFeature{
+				rawDefines(tag),
+				[]*tFeature{
 					{[]string{"C-1", tag},
 						fmt.Sprintf("c-1-string-%s", tag),
 						"constructor_string",
@@ -367,17 +432,14 @@ var (
 						fnb,
 					},
 				},
-				func(t *testing.T, tc *testComponent, e Env) {
-					cs := e.GetComponent(1, "TEST", tc.Tag)
-					tcs := cs[0]
-					assertIn(t, "component", tc.featureKeys(), tcs.Keys())
-					for _, v := range tc.Features {
-						v.fn(t, v, e, tcs)
-					}
+				func(t *testing.T, tc *tComponent, e Env) {
+					tfn := ct(1, "TEST", e.GetComponent)
+					tfn(t, tc, e)
 				},
 			},
 			{fmt.Sprintf("component-2-%s", tag),
-				[]*testFeature{
+				rawDefines(tag),
+				[]*tFeature{
 					{[]string{"C-2", tag},
 						fmt.Sprintf("c-2-string-%s", tag),
 						"constructor_string",
@@ -391,43 +453,64 @@ var (
 						fnb,
 					},
 				},
-				func(t *testing.T, tc *testComponent, e Env) {
-					cs := e.MustGetComponent(2, "TEST", tc.Tag)
-					tcs := cs[0]
-					assertIn(t, "component", tc.featureKeys(), tcs.Keys())
-					for _, v := range tc.Features {
-						v.fn(t, v, e, tcs)
-					}
+				func(t *testing.T, tc *tComponent, e Env) {
+					tfn := ct(1, "TEST", e.MustGetComponent)
+					tfn(t, tc, e)
 				},
 			},
 		}
 	}
 
-	rawEntities []*testEntity = []*testEntity{
+	ge = func(tag string, e Env) Entity {
+		le := e.ListEntities()
+		for _, v := range le {
+			if v.Tag() == tag {
+				return v
+			}
+		}
+		return nil
+	}
+
+	et = func(idx int, name string, fn func(int, string) []*data.Vector) func(*testing.T, *tEntity, Env) {
+		return func(t *testing.T, te *tEntity, e Env) {
+			ent := fn(idx, name)
+			for _, v := range ent {
+				cfk := te.componentFeatureKeys(v.ToString("component.tag"))
+				assertIn(t, "entity", cfk, v.Keys())
+			}
+
+			var df []string
+			for _, v := range te.Defines {
+				df = append(df, v.Tag)
+				v.fn(t, v, e, nil)
+			}
+			ce := ge(te.Tag, e)
+			if ce == nil {
+				t.Error("expected entity but got nil")
+			}
+			assertEqual(t, "entity", df, ce.Defines())
+
+			for _, v := range te.Components {
+				v.fn(t, v, e)
+			}
+		}
+	}
+
+	rawEntities []*tEntity = []*tEntity{
 		{"entity-1",
+			rawDefines("e1"),
 			rawComponents("e1"),
-			func(t *testing.T, te *testEntity, e Env) {
-				ent := e.GetEntity(1, "entity-1")
-				for _, v := range ent {
-					cfk := te.componentFeatureKeys(v.ToString("component.tag"))
-					assertIn(t, "entity", cfk, v.Keys())
-				}
-				for _, v := range te.Components {
-					v.fn(t, v, e)
-				}
+			func(t *testing.T, te *tEntity, e Env) {
+				efn := et(1, "entity-1", e.GetEntity)
+				efn(t, te, e)
 			},
 		},
 		{"entity-2",
+			rawDefines("e2"),
 			rawComponents("e2"),
-			func(t *testing.T, te *testEntity, e Env) {
-				ent := e.MustGetEntity(2, "entity-2")
-				for _, v := range ent {
-					cfk := te.componentFeatureKeys(v.ToString("component.tag"))
-					assertIn(t, "entity", cfk, v.Keys())
-				}
-				for _, v := range te.Components {
-					v.fn(t, v, e)
-				}
+			func(t *testing.T, te *tEntity, e Env) {
+				efn := et(2, "entity-2", e.MustGetEntity)
+				efn(t, te, e)
 			},
 		},
 	}
@@ -435,17 +518,17 @@ var (
 	packedFeatureSet string
 )
 
-func allFeatures() []*testFeature {
-	var ret []*testFeature
+func allFeatures() []*tFeature {
+	var ret []*tFeature
 	ret = append(ret, rawTestFeatures...)
 	ret = append(ret, rawWriteTestFeatures...)
 	ret = append(ret, rawSetFeatures...)
 	return ret
 }
 
-func testable(fs []*testFeature) ([]string, []*testFeature) {
+func testable(fs []*tFeature) ([]string, []*tFeature) {
 	var reta []string
-	var retb []*testFeature
+	var retb []*tFeature
 	for _, f := range fs {
 		if f.fn != nil {
 			reta = append(reta, f.Tag)
