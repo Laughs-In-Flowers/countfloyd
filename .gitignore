@@ -26,6 +26,7 @@ _testmain.go
 Godeps/*
 !Godeps/Godeps.json
 
+_back/*
 countfloyd
 lib/cfs/cfs
 resources/example/example
