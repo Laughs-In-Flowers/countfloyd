@@ -13,11 +13,11 @@ var start, populate, status, query, stop *exec.Cmd
 
 func init() {
 	cd, _ := os.Getwd()
-	start = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "stdout", "start")
+	start = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "start")
 	start.Stdout = os.Stdout
-	populate = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "stdout", "populate", "-features", filepath.Join(cd, "features.yaml"))
+	populate = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "populate", "-feature", filepath.Join(cd, "features.yaml"))
 	populate.Stdout = os.Stdout
-	status = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "stdout", "status")
+	status = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "status")
 	status.Stdout = os.Stdout
 	query = exec.Command("countfloyd", "-socket", socketPath, "-logFormatter", "raw", "query", "-feature", "SOCIETY-ORIENT")
 	stop = exec.Command("countfloyd", "-socket", socketPath, "stop")

@@ -33,4 +33,8 @@ resources/example/example
 _back
 *.out
 *.old.*
+coverage.out
 coverage.html
+bin/*
+bin/countfloyd
+bin/cfs

@@ -4,15 +4,16 @@ import (
 	"log"
 	"sort"
 
+	"github.com/Laughs-In-Flowers/xrr"
 	"gopkg.in/yaml.v2"
 )
 
 type RawFeature struct {
-	Set         []string
+	Group       []string
 	Tag         string
 	Apply       string
 	Values      []string
-	constructor Constructor
+	Constructor Constructor
 }
 
 func (r *RawFeature) MustGetValues() []string {
@@ -23,12 +24,20 @@ func (r *RawFeature) MustGetValues() []string {
 	return list
 }
 
+type Raw interface {
+	Queue([]byte) error
+	Dequeue(...string)
+	//DeqComponent([]*RawComponent) error
+	//DeqEntity([]*RawEntity) error
+	AddRaw(...*RawFeature) error
+}
+
 type raw struct {
-	e   *env
+	e   CEnv
 	has []*RawFeature
 }
 
-func newRaw(e *env) *raw {
+func NewRaw(e CEnv) *raw {
 	return &raw{
 		e:   e,
 		has: make([]*RawFeature, 0),
@@ -44,39 +53,60 @@ func (r *raw) Swap(i, j int) {
 }
 
 func (r *raw) Less(i, j int) bool {
-	return r.has[i].constructor.Order() < r.has[j].constructor.Order()
+	return r.has[i].Constructor.Order() < r.has[j].Constructor.Order()
 }
 
-var NoConstructorError = Frror("Constructor with tag %s does not exist.").Out
+var NoConstructorError = xrr.Xrror("Constructor with tag %s does not exist.").Out
 
-func (r *raw) addRaw(rfs ...*RawFeature) error {
-	for _, rf := range rfs {
-		var c Constructor
-		var exists bool
-		if c, exists = r.e.GetConstructor(rf.Apply); !exists {
+func applyConstructor(e CEnv, rf *RawFeature) error {
+	var c Constructor
+	var exists bool
+	if c, exists = e.GetConstructor(rf.Apply); !exists {
+		c, exists = e.GetConstructor("default")
+		if !exists {
 			return NoConstructorError(rf.Apply)
 		}
-		rf.constructor = c
+	}
+	rf.Constructor = c
+	return nil
+}
+
+func (r *raw) AddRaw(rfs ...*RawFeature) error {
+	for _, rf := range rfs {
+		err := applyConstructor(r.e, rf)
+		if err != nil {
+			return err
+		}
 		r.has = append(r.has, rf)
 	}
 	return nil
 }
 
-func (r *raw) queue(in []byte) error {
+func (r *raw) Queue(in []byte) error {
 	var rfs []*RawFeature
 	err := yaml.Unmarshal(in, &rfs)
 	if err != nil {
 		return err
 	}
-	return r.addRaw(rfs...)
+	return r.AddRaw(rfs...)
 }
 
-func deqComponent(e *env, rcs []*RawComponent) error {
+func (r *raw) Dequeue(groups ...string) {
+	sort.Sort(r)
+	for i, rf := range r.has {
+		rf.Group = append(rf.Group, groups...)
+		r.e.SetFeature(rf)
+		r.has[i] = nil
+	}
+	r.has = nil
+}
+
+func DeqComponent(e CEnv, rcs []*RawComponent) error {
 	for _, rc := range rcs {
 		var fs []*RawFeature
 		fs = append(fs, rc.Defines...)
 		fs = append(fs, rc.Features...)
-		err := e.addRaw(fs...)
+		err := e.AddRaw(fs...)
 		if err != nil {
 			return err
 		}
@@ -84,25 +114,16 @@ func deqComponent(e *env, rcs []*RawComponent) error {
 	return e.SetRawComponent(rcs...)
 }
 
-func deqEntity(e *env, res []*RawEntity) error {
+func DeqEntity(e CEnv, res []*RawEntity) error {
 	for _, re := range res {
-		err := e.addRaw(re.Defines...)
+		err := e.AddRaw(re.Defines...)
 		if err != nil {
 			return err
 		}
-		err = deqComponent(e, re.Components)
+		err = DeqComponent(e, re.Components)
 		if err != nil {
 			return err
 		}
 	}
 	return e.SetRawEntity(res...)
-}
-
-func (r *raw) dequeue() {
-	sort.Sort(r)
-	for i, rf := range r.has {
-		r.e.SetFeature(rf)
-		r.has[i] = nil
-	}
-	r.has = nil
 }

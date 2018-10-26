@@ -4,7 +4,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
+	"github.com/Laughs-In-Flowers/countfloyd/lib/env"
 	"github.com/Laughs-In-Flowers/log"
 )
 
@@ -143,26 +143,15 @@ func sSocketPath(s *Server) error {
 }
 
 func sListener(s *Server) error {
-	if len(s.Listening) == 0 {
-		for i := 0; i <= s.Listeners; i++ {
-			lr := NewListener(s.SocketPath, s.process)
-			if lr.Error != nil {
-				return lr.Error
-			}
-			s.Listening = append(s.Listening, lr)
-		}
+	lr := NewListener(s.SocketPath, s.process)
+	if lr.Error != nil {
+		return lr.Error
 	}
+	s.Listener = lr
 	return nil
 }
 
-func Listeners(n int) Config {
-	return DefaultConfig(func(s *Server) error {
-		s.Listeners = n
-		return nil
-	})
-}
-
-func SetFeatureEnvironment(f feature.Env) Config {
+func SetFeatureEnvironment(f env.Env) Config {
 	return DefaultConfig(func(s *Server) error {
 		s.Env = f
 		return nil
@@ -171,35 +160,53 @@ func SetFeatureEnvironment(f feature.Env) Config {
 
 func sFeatureEnv(s *Server) error {
 	if s.Env == nil {
-		s.Env = feature.Empty()
+		s.Env = env.Empty()
 	}
 	return nil
 }
 
-func SetPopulateFeatures(files ...string) Config {
+func SetConstructorPluginDirs(dirs ...string) Config {
+	return NewConfig(50, func(s *Server) error {
+		for _, d := range dirs {
+			s.Printf("loading plugins from %s", d)
+		}
+		return s.PopulateConstructorPlugin(dirs...)
+	})
+}
+
+func SetFeaturePluginDirs(groups []string, dirs ...string) Config {
+	return NewConfig(1000, func(s *Server) error {
+		for _, d := range dirs {
+			s.Printf("loading plugins from %s", d)
+		}
+		return s.PopulateFeaturePlugin(groups, dirs...)
+	})
+}
+
+func SetPopulateFeatures(groups []string, files ...string) Config {
 	return NewConfig(2000, func(s *Server) error {
 		for _, f := range files {
 			s.Printf("loading features from %s", f)
 		}
-		return s.PopulateYaml(files...)
+		return s.PopulateFeatureYaml(groups, files...)
 	})
 }
 
-func SetPopulateComponents(files ...string) Config {
+func SetPopulateComponents(groups []string, files ...string) Config {
 	return NewConfig(2001, func(s *Server) error {
 		for _, f := range files {
 			s.Printf("loading features from %s", f)
 		}
-		return s.PopulateComponentYaml(files...)
+		return s.PopulateComponentYaml(groups, files...)
 	})
 }
 
-func SetPopulateEntities(files ...string) Config {
+func SetPopulateEntities(groups []string, files ...string) Config {
 	return NewConfig(2002, func(s *Server) error {
 		for _, f := range files {
 			s.Printf("loading features from %s", f)
 		}
-		return s.PopulateEntityYaml(files...)
+		return s.PopulateEntityYaml(groups, files...)
 	})
 }
 

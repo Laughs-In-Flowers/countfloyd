@@ -1,54 +1,178 @@
 ---                                                   
-- tag: on-off
-  apply: simple_random
-  values: [1, "on", "off"]
-- tag: true-false
-  apply: simple_random
-  values: [1, "true", "false"]
-- tag: law-orientation-list 
+- tag: intro
+  apply: list
+  values: 
+  - countfloyd is a feature server.
+  - At base a feature key value that returns another value. 
+  - For example, the key 'color' might return one of (red, green or blue).
+  - A feature is defined by a string tag, a string list of groups the feature belongs to, a constructor to apply, and a string list of values.
+  - features are defined singly or part of components & entities.
+  - features (should, though not yet a hard & fast rule) take zero parameters - just the keyword.
+  group:
+  - INSTRUCTION  
+- tag: what-is-a-constructor
   apply: list
   values:
-    - lawful
-    - neutral
-    - chaotic
+  - a constructor is a method for linking a string tag to a return value
+  - you provide the type to apply and a list of values used in construction
+  - the constructor is a protype for building any number of features you need
+  - you can build 100's of different features from one constructor
+  group: 
+  - INSTRUCTION
+- tag: default-constructor
+  values: 
+  - "the default constructor applies a key to return a value when no constructor is specified"
+  group: 
+  - INSTRUCTION
+- tag: default-constructor-2
+  apply: default
+  values: 
+  - "you can call the default constructor explicitly if you wish"
+  group: 
+  - INSTRUCTION
+- tag: current-available-constructors
+  apply: list
+  values:
+  - collection_member (built around a collection, e.g.card_value + priority = ace, king, queen, jack, 10, 9, 8, 7, 6, 5, 4, 3, 2)
+  - collection_member_indexed (built around a collection, but creates indexed keys e.g. card_value_0 = ace)
+  - combination_strings (tbd)
+  - default (connects a key to the first item in the values list)
+  - list (simply the list provided in the order provided)
+  - list_with_null (the list provided, but with an inserted values as a null/nonce)
+  - list_shuffle (sourced to list, but shuffled every time)
+  - list_expand_int_range (an expanded list from a range of numbers e.g. 1-1000)
+  - list_expand (expands a list from the provided group or feature keywords, defaulting to the provided keyword if nothing is found)
+  # - list_alphebetized (return a list ordered alphabetically)
+  - list_mirror_ints (expand & mirror the provided in negative range e.g. 1,2, 3 to [-3, -2, -1, 1, 2, 3])
+  # - round_robin 
+  - set (return a set keyed to provided keys matching select features)
+  - simple_random (a random item from the list provided)
+  - sourced_random (a random item sourced from another feature defined as a list)
+  - weighted_string_with_weights (provide values and their weights for selection)
+  - weighted_string_with_normalized_weights (provide values and generate a normalized curve for selection)
+  group: 
+  - INSTRUCTION
+- tag: custom-constructors-and-features
+  apply: list
+  values:
+  - there is a plugin system to accomodate custom constructors & features
+  group:
+  - INSTRUCTION
+- tag: definition-conventions
+  apply: list
+  values:
+  - hyphenate (not a required, but preferrred) tags to one whole unit (required) e.g. this-is-a-tag
+  - underscore (required) constructors names to one whole unit (required) e.g. list_with_null
+  group:
+  - INSTRUCTION
+- tag: yes-no
+  apply: list
+  values: ["yes", "no"]
+- tag: y-n-null
+  apply: list_with_null
+  values: 
+    - "neither yes nor no"   # this is the null value
+    - yes-no                 # insert the null value to this list
+- tag: ask-the-simple-magicball
+  apply: sourced_random
+  values: [1, y-n-null]
+- tag: on-off
+  apply: simple_random
+  values: [1, "on", "off"] # float value between 0 and 1 indicating whether any of the following list is returned: "100% chance either on or off will be picked" 
+- tag: on-off-perhaps
+  apply: simple_random
+  values: [0.5, "on", "off"] # 50% chance either on or off will be picked, if not returns an empty string " 
+- tag: true-false
+  apply: simple_random
+  values: [1, "true", "false"] # always return one of true or false 
+- tag: card-face-list
+  apply: list_expand
+  values:
+  - ace
+  - 2-10
+  - jack
+  - queen
+  - king
+- tag: card-face
+  apply: collection_member
+  values:
+  - card-face-list
+- tag: card-face-idx
+  apply: collection_member_indexed
+  values:
+  - card-face-list
+- tag: law-orientation-list 
+  apply: list                  # just a list that always returns the values supplied
+  values:
+  - lawful
+  - neutral
+  - chaotic
+- tag: law-orientation
+  apply: sourced_random
+  values: [1, law-orientation-list]
 - tag: life-orientation-list
   apply: list
   values:
-    - good
-    - neutral
-    - evil
-- tag: alignment
-  apply: combination_strings
-  values:
-    - 2
-    - false
-    - false
-    - law-orientation-list
-    - life-orientation-list
+  - good
+  - neutral
+  - evil
+- tag: life-orientation
+  apply: sourced_random
+  values: [1, life-orientation-list]
 - tag: needs-list
   apply: list
   values:
-    - physiological
-    - safety
-    - love/belonging
-    - esteem
-    - actualisation
-    - trancendence
+  - physiological
+  - safety
+  - love/belonging
+  - esteem
+  - actualisation
+  - trancendence
+- tag: needs
+  apply: sourced_random
+  values: [1, needs-list]
+- tag: alignment-cues
+  apply: combination_strings
+  values:
+  - 2                      # number of lists to combine
+  - false                  # repeat
+  - false                  # same
+  - law-orientation-list   # all beyond this point are features used for combining 
+  - life-orientation-list  #
+- tag: alignment
+  apply: sourced_random
+  values: [1, alignment-cues]
+- tag: orientation-cues
+  apply: combination_strings
+  values:
+  - 3                      # number of lists combine
+  - false                  # repeat 
+  - false                  # same
+  - law-orientation-list   # all beyond this point are features used for combining
+  - life-orientation-list  #
+  - needs-list             #
+- tag: orientation
+  apply: sourced_random
+  values: [1, orientation-cues]
+- tag: orientation-2
+  apply: set              # a mapped set with key-value of applied features
+  values:
+  - law;law-orientation   # set key "law" will map to instance of law-orientation
+  - life;life-orientation # set key "life" will map to instance of life-orientation 
+  - needs                 # set key "needs" will map to instance of needs
+- tag: all-instruction
+  apply: set               
+  values:
+  - INSTRUCTION           # a mapped set from all applied features from the provided groups
 - tag: needs-shuffled
   apply: list_shuffle
   values: [needs-list]
-- tag: orientation-cue
-  apply: combination_strings
-  values:
-    - 3
-    - false
-    - false
-    - law-orientation-list
-    - life-orientation-list
-    - needs-list
 - tag: self-needs
   apply: weighted_string_with_normalized_weights
-  values: [needs-shuffled,""]
+  values: [needs-shuffled, ""]
 - tag: society-orient
   apply: weighted_string_with_weights
-  values: [alignment, 25, 30, 100, 7, 10, 9, 8, 7, 7, 100, 2]
+  values: [alignment-cues, 25, 30, 100, 7, 10, 9, 8, 7, 7, 100, 2]
+#- tag
+#  apply: round_robin # apply values equally in cycle from ordered or unordered list
+#  values: ordered

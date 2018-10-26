@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
+	"fmt"
 	"io"
-	"log"
+	"os"
 	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/Laughs-In-Flowers/data"
+	"github.com/Laughs-In-Flowers/xrr"
 )
 
 type Feature interface {
@@ -56,8 +58,6 @@ type Valuer interface {
 
 type Transmitter interface {
 	RawFeature() RawFeature
-	//Bytes() ([]byte, error)
-	//json.Marshaler
 }
 
 type Informer interface {
@@ -143,7 +143,7 @@ type Emitter interface {
 	EmitStrings() (data.StringsItem, error)
 	EmitBool() (data.BoolItem, error)
 	EmitInt() (data.IntItem, error)
-	EmitFloat() (data.FloatItem, error)
+	EmitFloat() (data.Float64Item, error)
 	EmitVector() (data.VectorItem, error)
 }
 
@@ -161,7 +161,7 @@ func (e *emitter) Emit() data.Item {
 	return e.eFn()
 }
 
-var EmitTypeError = Frror("unable to emit item as %s").Out
+var EmitTypeError = xrr.Xrror("unable to emit item as %s").Out
 
 func (e *emitter) EmitString() (data.StringItem, error) {
 	f := e.Emit()
@@ -195,9 +195,9 @@ func (e *emitter) EmitInt() (data.IntItem, error) {
 	return nil, EmitTypeError("int")
 }
 
-func (e *emitter) EmitFloat() (data.FloatItem, error) {
+func (e *emitter) EmitFloat() (data.Float64Item, error) {
 	f := e.Emit()
-	if sf, ok := f.(data.FloatItem); ok {
+	if sf, ok := f.(data.Float64Item); ok {
 		return sf, nil
 	}
 	return nil, EmitTypeError("float")
@@ -284,46 +284,61 @@ func DecodeFeatureGroup(s string) (*FeatureGroup, error) {
 }
 
 type Features interface {
+	AddFeature(...Feature)
 	SetFeature(*RawFeature) error
 	GetFeature(string) Feature
 	MustGetFeature(string) Feature
 	GetGroup(string) *FeatureGroup
 	List(string) []RawFeature
+	Remove(...string) error
 }
 
 type features struct {
-	e   *env
+	e   CEnv
 	has map[string]Feature
 }
 
-func newFeatures(e *env) Features {
+func NewFeatures(e CEnv) Features {
 	return &features{
 		e:   e,
 		has: make(map[string]Feature),
 	}
 }
 
-func (fs *features) SetFeature(rf *RawFeature) error {
-	TAG := strings.ToUpper(rf.Tag)
-	if _, exists := fs.has[TAG]; exists {
-		return ExistsError("feature", TAG)
+func (fs *features) AddFeature(nfs ...Feature) {
+	for _, nf := range nfs {
+		fs.has[nf.Tag()] = nf
 	}
-	fs.has[TAG] = rf.constructor.Construct(TAG, rf, fs.e)
+}
+
+func (fs *features) SetFeature(rf *RawFeature) error {
+	KEY := strings.ToUpper(rf.Tag)
+	if _, exists := fs.has[KEY]; exists {
+		return ExistsError("feature", KEY)
+	}
+	if rf.Constructor == nil {
+		err := applyConstructor(fs.e, rf)
+		if err != nil {
+			return err
+		}
+	}
+	fs.has[KEY] = rf.Constructor.Construct(KEY, rf, fs.e)
 	return nil
 }
 
-func (fs *features) GetFeature(tag string) Feature {
-	if f, ok := fs.has[strings.ToUpper(tag)]; ok {
+func (fs *features) GetFeature(key string) Feature {
+	if f, ok := fs.has[strings.ToUpper(key)]; ok {
 		return f
 	}
 	return nil
 }
 
-func (fs *features) MustGetFeature(tag string) Feature {
-	f := fs.GetFeature(tag)
+func (fs *features) MustGetFeature(key string) Feature {
+	f := fs.GetFeature(key)
 	if f == nil {
-		logErr := NotFoundError("feature", tag)
-		log.Fatalf(logErr.Error())
+		logErr := NotFoundError("feature", key)
+		fmt.Fprintf(os.Stderr, "FATAL: %s\n", logErr)
+		os.Exit(-9000)
 	}
 	return f
 }
@@ -343,8 +358,27 @@ func (fs *features) List(group string) []RawFeature {
 	return g.List()
 }
 
-func NewData(n int) *data.Vector {
+func (fs *features) remove(group string) error {
+	for k, f := range fs.has {
+		if f.IsGroup(group) {
+			delete(fs.has, k)
+		}
+	}
+	return nil
+}
+
+func (fs *features) Remove(groups ...string) error {
+	for _, group := range groups {
+		err := fs.remove(group)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func NewData(n float64) *data.Vector {
 	d := data.New("")
-	d.Set(data.NewIntItem("feature.priority", n))
+	d.Set(data.NewFloat64Item("meta.priority", n))
 	return d
 }

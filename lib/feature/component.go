@@ -39,17 +39,17 @@ func (c *component) Features() []string {
 type Components interface {
 	SetRawComponent(...*RawComponent) error
 	SetComponent(...Component) error
-	GetComponent(int, string, ...string) []*data.Vector
-	MustGetComponent(int, string, ...string) []*data.Vector
+	GetComponent(float64, string, ...string) []*data.Vector
+	MustGetComponent(float64, string, ...string) []*data.Vector
 	ListComponents() []Component
 }
 
 type components struct {
-	e   *env
+	e   CEnv
 	has map[string]Component
 }
 
-func newComponents(e *env) Components {
+func NewComponents(e CEnv) Components {
 	return &components{
 		e, make(map[string]Component),
 	}
@@ -82,7 +82,7 @@ func (c *components) SetComponent(cs ...Component) error {
 	return nil
 }
 
-func newComponentVector(e Env, cc Component, id string, priority int) *data.Vector {
+func newComponentVector(e CEnv, cc Component, id string, priority float64) *data.Vector {
 	d := NewData(priority)
 	fs := cc.Features()
 	e.Apply(fs, d)
@@ -91,14 +91,14 @@ func newComponentVector(e Env, cc Component, id string, priority int) *data.Vect
 	return d
 }
 
-func getComponentVector(c *components, key, id string, priority int) (*data.Vector, error) {
+func getComponentVector(c *components, key, id string, priority float64) (*data.Vector, error) {
 	if cm, exists := c.has[key]; exists {
 		return newComponentVector(c.e, cm, id, priority), nil
 	}
 	return nil, DoesNotExistError("component", key)
 }
 
-func (c *components) GetComponent(priority int, id string, k ...string) []*data.Vector {
+func (c *components) GetComponent(priority float64, id string, k ...string) []*data.Vector {
 	var ret []*data.Vector
 	for _, key := range k {
 		if cm, err := getComponentVector(c, key, id, priority); err == nil {
@@ -108,7 +108,7 @@ func (c *components) GetComponent(priority int, id string, k ...string) []*data.
 	return ret
 }
 
-func (c *components) MustGetComponent(priority int, id string, k ...string) []*data.Vector {
+func (c *components) MustGetComponent(priority float64, id string, k ...string) []*data.Vector {
 	var ret []*data.Vector
 	for _, key := range k {
 		cm, err := getComponentVector(c, key, id, priority)

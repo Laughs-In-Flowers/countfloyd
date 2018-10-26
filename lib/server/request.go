@@ -154,18 +154,27 @@ var (
 	PING              = []byte("ping")
 	QUIT              = []byte("quit")
 	STATUS            = []byte("status")
-	FEATURE           = []byte("feature")
-	COMPONENT         = []byte("component")
-	ENTITY            = []byte("entity")
+	QUERYFEATURE      = []byte("query_feature")
+	QUERYCOMPONENT    = []byte("query_component")
+	QUERYENTITY       = []byte("query_entity")
 	POPULATEFROMFILES = []byte("populate_from_files")
-	APPLYFEATURES     = []byte("apply_features")
+	DEPOPULATE        = []byte("depopulate")
+	APPLYFEATURE      = []byte("apply_feature")
 	APPLYCOMPONENT    = []byte("apply_component")
-	APPLYCOMPONENTS   = []byte("apply_components")
 	APPLYENTITY       = []byte("apply_entity")
 
 	actions []Action = []Action{
-		PING, QUIT, STATUS, FEATURE, POPULATEFROMFILES, APPLYFEATURES,
-		APPLYCOMPONENT, APPLYCOMPONENTS, APPLYENTITY,
+		PING,
+		QUIT,
+		STATUS,
+		QUERYFEATURE,
+		QUERYCOMPONENT,
+		QUERYENTITY,
+		POPULATEFROMFILES,
+		DEPOPULATE,
+		APPLYFEATURE,
+		APPLYCOMPONENT,
+		APPLYENTITY,
 	}
 )
 

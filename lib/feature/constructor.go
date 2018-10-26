@@ -1,14 +1,27 @@
 package feature
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Laughs-In-Flowers/data"
+)
+
+type CEnv interface {
+	Raw
+	Constructors
+	Features
+	Components
+	Entities
+	Apply([]string, *data.Vector, ...MapFn) error
+}
 
 type Constructor interface {
 	Tagger
 	Order() int
-	Construct(string, *RawFeature, Env) Feature
+	Construct(string, *RawFeature, CEnv) Feature
 }
 
-type ConstructorFn func(string, *RawFeature, Env) (Informer, Emitter, Mapper)
+type ConstructorFn func(string, *RawFeature, CEnv) (Informer, Emitter, Mapper)
 
 type constructor struct {
 	tag   string
@@ -34,7 +47,7 @@ func (c constructor) Order() int {
 	return c.order
 }
 
-func (c constructor) Construct(name string, r *RawFeature, e Env) Feature {
+func (c constructor) Construct(name string, r *RawFeature, e CEnv) Feature {
 	return NewFeature(c.fn(name, r, e))
 }
 
@@ -53,7 +66,7 @@ func NewConstructors() Constructors {
 }
 
 func SetConstructor(cns ...Constructor) error {
-	return internal.SetConstructor(cns...)
+	return Internal.SetConstructor(cns...)
 }
 
 func (c *constructors) SetConstructor(cns ...Constructor) error {
@@ -68,7 +81,7 @@ func (c *constructors) SetConstructor(cns ...Constructor) error {
 }
 
 func GetConstructor(key string) (Constructor, bool) {
-	return internal.GetConstructor(key)
+	return Internal.GetConstructor(key)
 }
 
 func (c *constructors) GetConstructor(key string) (Constructor, bool) {
@@ -79,7 +92,7 @@ func (c *constructors) GetConstructor(key string) (Constructor, bool) {
 }
 
 func ListConstructors() []Constructor {
-	return internal.ListConstructors()
+	return Internal.ListConstructors()
 }
 
 func (c *constructors) ListConstructors() []Constructor {
@@ -90,8 +103,8 @@ func (c *constructors) ListConstructors() []Constructor {
 	return ret
 }
 
-var internal Constructors
+var Internal Constructors
 
 func init() {
-	internal = NewConstructors()
+	Internal = NewConstructors()
 }

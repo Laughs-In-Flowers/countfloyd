@@ -39,17 +39,17 @@ func (e *entity) Components() []string {
 type Entities interface {
 	SetRawEntity(...*RawEntity) error
 	SetEntity(...Entity) error
-	GetEntity(int, string) []*data.Vector
-	MustGetEntity(int, string) []*data.Vector
+	GetEntity(float64, string) []*data.Vector
+	MustGetEntity(float64, string) []*data.Vector
 	ListEntities() []Entity
 }
 
 type entities struct {
-	e   *env
+	e   CEnv
 	has map[string]Entity
 }
 
-func newEntities(e *env) Entities {
+func NewEntities(e CEnv) Entities {
 	return &entities{
 		e, make(map[string]Entity),
 	}
@@ -84,20 +84,20 @@ func (e *entities) SetEntity(es ...Entity) error {
 	return nil
 }
 
-func getEntity(e *env, ent Entity, priority int) []*data.Vector {
-	id := data.V4Quick()
+func getEntity(e CEnv, ent Entity, priority float64) []*data.Vector {
+	id := genUUID()
 	comp := ent.Components()
 	return e.GetComponent(priority, id, comp...)
 }
 
-func (e *entities) GetEntity(priority int, key string) []*data.Vector {
+func (e *entities) GetEntity(priority float64, key string) []*data.Vector {
 	if ent, exists := e.has[key]; exists {
 		return getEntity(e.e, ent, priority)
 	}
 	return nil
 }
 
-func (e *entities) MustGetEntity(priority int, key string) []*data.Vector {
+func (e *entities) MustGetEntity(priority float64, key string) []*data.Vector {
 	ent, exists := e.has[key]
 	if !exists {
 		logErr := NotFoundError("entity", key)

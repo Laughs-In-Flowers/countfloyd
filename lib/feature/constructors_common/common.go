@@ -1,4 +1,4 @@
-package constructor
+package constructors_common
 
 import "github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 
@@ -24,13 +24,18 @@ var register *Registerables
 func init() {
 	register = &Registerables{
 		[]Registerable{
+			AlphaOrdered,
 			CollectionMember,
+			CollectionMemberIndexed,
 			CombinationStrings,
+			Default,
 			List,
 			ListWithNull,
 			ListShuffle,
 			ListExpandIntRange,
+			ListExpand,
 			ListMirrorInts,
+			RoundRobin,
 			Set,
 			SimpleRandom,
 			SourcedRandom,

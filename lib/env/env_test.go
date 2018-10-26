@@ -1,8 +1,10 @@
-package feature_test
+package env_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -341,23 +343,25 @@ var (
 		},
 	}
 
-	//rawPluginConstructors []*tFeature = []*tFeature{
-	//{[]string{"PLUGIN"},   // feature from constructer plugin
-	//	"",
-	//	"",
-	//	[]string{},
-	//	nil,
-	//},
-	//}
+	//in progress
+	rawPluginConstructors []*tFeature = []*tFeature{
+		{[]string{"PLUGIN"}, // feature from constructer plugin
+			"plugin-constructor",
+			"test_constructor_one",
+			[]string{},
+			nil, //tbd
+		},
+	}
 
-	//rawPluginFeatures []*tFeature = []*tFeature{
-	//{[]string{"PLUGIN"},  // feature of feature plugin
-	//	"",
-	//	"",
-	//	[]string{""},
-	//	nil,
-	//},
-	//}
+	//in progress
+	rawPluginFeatures []*tFeature = []*tFeature{
+		{[]string{"PLUGIN"}, // feature of feature plugin
+			"plugin-feature",
+			"",
+			[]string{""},
+			nil, //tbd
+		},
+	}
 
 	rawWriteTestFeatures []*tFeature = []*tFeature{
 		{[]string{"FILE"},
@@ -537,18 +541,17 @@ var (
 
 	rootDir string = "/tmp/cf"
 
-	/*
-		plgnDir string = filepath.Join(rootDir, "plgn")
+	plgnDir string = filepath.Join(rootDir, "plgn")
 
-		plgnFile string = "plgn.go"
+	plgnFile string = "plgn.go"
 
-		plgnCLoc string = filepath.Join(plgnDir, plgnFile)
+	plgnCLoc string = filepath.Join(plgnDir, plgnFile)
 
-		plgnPlgn string = "plgn.so"
+	plgnPlgn string = "plgn.so"
 
-		plgnLoc string = filepath.Join(plgnDir, plgnPlgn)
+	plgnLoc string = filepath.Join(plgnDir, plgnPlgn)
 
-		plgn string = `package main
+	plgn string = `package main
 		import (
 			"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 			"github.com/Laughs-In-Flowers/data"
@@ -557,7 +560,7 @@ var (
 		type TC1 struct {}
 
 		func (t TC1) Tag() string {
-			return "TestConstructorOne"
+			return "TEST_CONSTRUCTOR_ONE"
 		}
 
 		func (t TC1) Order() int {
@@ -565,7 +568,7 @@ var (
 		}
 
 		func (t TC1) Construct(tag string, rf *feature.RawFeature, e feature.CEnv) feature.Feature {
-			return NewTF1("tf1-from-CONSTRUCTOR")
+			return NewTF1("tf1_from_CONSTRUCTOR")
 		}
 
 		func Constructors() []feature.Constructor {
@@ -604,14 +607,14 @@ var (
 				NewTF1("tf1-instance-FEATURE"),
 			}
 		}
-		`*/
+		`
 )
 
 func allFeatures() []*tFeature {
 	var ret []*tFeature
 	ret = append(ret, rawTestFeatures...)
-	//ret = append(ret, rawPluginConstructors...)
-	//ret = append(ret, rawPluginFeatures...)
+	ret = append(ret, rawPluginConstructors...)
+	ret = append(ret, rawPluginFeatures...)
 	ret = append(ret, rawWriteTestFeatures...)
 	ret = append(ret, rawSetFeatures...)
 	return ret
@@ -681,31 +684,31 @@ func writeYaml(p string, i interface{}) error {
 	return nil
 }
 
-//func writePlugin(p string) error {
-//	f, err := open(p)
-//	if err != nil {
-//		return err
-//	}
-//	f.WriteString(plgn)
-//	f.Close()
-//	return nil
-//}
+func writePlugin(p string) error {
+	f, err := open(p)
+	if err != nil {
+		return err
+	}
+	f.WriteString(plgn)
+	f.Close()
+	return nil
+}
 
-//func compilePlugin(p string) error {
-//	cmd := exec.Command(
-//		"go",
-//		"build",
-//		"-buildmode=plugin",
-//		"-o",
-//		plgnLoc,
-//		p,
-//	)
-//	o, err := cmd.CombinedOutput()
-//	if err != nil {
-//		return errors.New(fmt.Sprintf("%s: %s", err.Error(), string(o)))
-//	}
-//	return nil
-//}
+func compilePlugin(p string) error {
+	cmd := exec.Command(
+		"go",
+		"build",
+		"-buildmode=plugin",
+		"-o",
+		plgnLoc,
+		p,
+	)
+	o, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.New(fmt.Sprintf("%s: %s", err.Error(), string(o)))
+	}
+	return nil
+}
 
 func deleteFile(p string) {
 	os.Remove(p)
@@ -893,20 +896,20 @@ func testEnv(t *testing.T) feature.CEnv {
 
 	errIf(t, e.Populate(b))
 
-	//errIf(t, writePlugin(plgnCLoc))
+	errIf(t, writePlugin(plgnCLoc))
 
-	//errIf(t, compilePlugin(plgnCLoc))
+	errIf(t, compilePlugin(plgnCLoc))
 
-	//errIf(t, e.PopulateConstructorPlugin(plgnDir))
+	errIf(t, e.PopulateConstructorPlugin(plgnDir))
 
-	//var cb []byte
-	//cb, err = yaml.Marshal(&rawPluginConstructors)
-	//errIf(t, e.Populate(cb))
+	var cb []byte
+	cb, err = yaml.Marshal(&rawPluginConstructors)
+	errIf(t, e.Populate(cb))
 
-	//errIf(t, e.PopulateFeaturePlugin([]string{}, plgnDir))
+	errIf(t, e.PopulateFeaturePlugin([]string{}, plgnDir))
 
-	//defer deleteFile(plgnCLoc)
-	//defer deleteFile(plgnLoc)
+	defer deleteFile(plgnCLoc)
+	defer deleteFile(plgnLoc)
 
 	errIf(t, e.PopulateFeatureYaml([]string{}, loc1))
 

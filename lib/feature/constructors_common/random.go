@@ -1,4 +1,4 @@
-package constructor
+package constructors_common
 
 import (
 	mr "math/rand"
@@ -8,7 +8,7 @@ import (
 	"github.com/Laughs-In-Flowers/data"
 )
 
-func random(from, tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func random(from, tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.MustGetValues()
 	sd, err := strconv.ParseFloat(list[0], 64)
 	if err != nil {
@@ -37,14 +37,14 @@ func random(from, tag string, r *feature.RawFeature, e feature.Env) (feature.Inf
 		d.Set(ef())
 	}
 
-	return construct(from, r.Set, tag, list, list, ef, mf)
+	return construct(from, r.Group, tag, list, list, ef, mf)
 }
 
 func SimpleRandom() feature.Constructor {
 	return feature.DefaultConstructor("SIMPLE_RANDOM", simpleRandom)
 }
 
-func simpleRandom(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func simpleRandom(tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	return random("RANDOM", tag, r, e)
 }
 
@@ -52,7 +52,7 @@ func SourcedRandom() feature.Constructor {
 	return feature.NewConstructor("SOURCED_RANDOM", 10000, sourcedRandom)
 }
 
-func sourcedRandom(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func sourcedRandom(tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	list := r.MustGetValues()
 	if len(list) != 2 {
 		return nil, nil, nil

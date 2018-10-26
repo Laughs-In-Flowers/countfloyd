@@ -1,4 +1,4 @@
-package constructor
+package constructors_common
 
 import (
 	"fmt"
@@ -60,9 +60,10 @@ func Combinations(list Replacer, selectNum int, repeatable bool, buf int) (c cha
 	}
 
 	var comb_generator func([]int, int, int) chan []int
-	if repeatable {
+	switch {
+	case repeatable:
 		comb_generator = repeated_combinations
-	} else {
+	default:
 		comb_generator = combinations
 	}
 
@@ -121,7 +122,7 @@ func CombinationStrings() feature.Constructor {
 	return feature.NewConstructor("COMBINATION_STRINGS", 90, combinationOfStrings)
 }
 
-func combinationOfStrings(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func combinationOfStrings(tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	rp, num, repeat, same, buf := csArgParser(e, r.MustGetValues())
 
 	var vals []string
@@ -136,10 +137,10 @@ func combinationOfStrings(tag string, r *feature.RawFeature, e feature.Env) (fea
 		}
 	}
 
-	return listFrom("COMBINATION_STRINGS", r.Set, tag, r.Values, vals, e)
+	return listFrom("COMBINATION_STRINGS", r.Group, tag, r.Values, vals, e)
 }
 
-func csArgParser(e feature.Env, args []string) (Replacer, int, bool, bool, int) {
+func csArgParser(e feature.CEnv, args []string) (Replacer, int, bool, bool, int) {
 	args = argsMustBeLength(e, args, 4)
 	var err error
 

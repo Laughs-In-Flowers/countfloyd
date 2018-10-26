@@ -1,4 +1,4 @@
-package constructor
+package constructors_common
 
 import (
 	cr "crypto/rand"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/Laughs-In-Flowers/countfloyd/lib/feature"
 	"github.com/Laughs-In-Flowers/data"
+	"github.com/Laughs-In-Flowers/xrr"
 )
 
 type Choice struct {
@@ -24,7 +25,7 @@ type choices struct {
 	v []*Choice
 }
 
-var Unreachable = Crror("weighted choices error: unreachable")
+var Unreachable = xrr.Xrror("weighted choices error: unreachable")
 
 func (cs *choices) Choose() (*Choice, error) {
 	sum := 0
@@ -44,7 +45,7 @@ func (cs *choices) Choose() (*Choice, error) {
 	return nil, Unreachable
 }
 
-var LargerMin = Crror("Min cannot be greater than max.")
+var LargerMin = xrr.Xrror("Min cannot be greater than max.")
 
 func intSpread(min, max int) (int, error) {
 	var result int
@@ -76,7 +77,7 @@ type numbersFunc func([]string, ...string) []string
 
 func wsParse(tag string,
 	r *feature.RawFeature,
-	e feature.Env,
+	e feature.CEnv,
 	nfn numbersFunc) *wsp {
 	raw := argsMustBeLength(e, r.MustGetValues(), 2)
 
@@ -90,7 +91,7 @@ func wsParse(tag string,
 
 	mf := weightedStringMapFunction(tag, ef)
 
-	return &wsp{r.Set, raw, numbers, ef, mf}
+	return &wsp{r.Group, raw, numbers, ef, mf}
 }
 
 func weightedStringWith(
@@ -105,7 +106,7 @@ func weightedStringWith(
 	return construct(from, group, tag, raw, values, ef, mf)
 }
 
-func baseValuesList(f string, e feature.Env) []string {
+func baseValuesList(f string, e feature.CEnv) []string {
 	source := e.MustGetFeature(f)
 	if i, err := source.EmitStrings(); err == nil {
 		return i.ToStrings()
@@ -193,7 +194,7 @@ func WeightedStringWithWeights() feature.Constructor {
 	)
 }
 
-func wsWithWeights(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func wsWithWeights(tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	wsp := wsParse(tag, r, e, withNumbersWeighting)
 	return weightedStringWith("WEIGHTED_STRING_WITH_WEIGHTS",
 		wsp.group,
@@ -228,7 +229,7 @@ func WeightedStringWithNormalizedWeights() feature.Constructor {
 	)
 }
 
-func wsWithNormalizedWeights(tag string, r *feature.RawFeature, e feature.Env) (feature.Informer, feature.Emitter, feature.Mapper) {
+func wsWithNormalizedWeights(tag string, r *feature.RawFeature, e feature.CEnv) (feature.Informer, feature.Emitter, feature.Mapper) {
 	wsp := wsParse(tag, r, e, normalizeWeighting)
 	return weightedStringWith("WEIGHTED_STRING_WITH_NORMALIZED_WEIGHTS",
 		wsp.group,
