@@ -1,6 +1,5 @@
 ## Changelog
 
-
 ### countfloyd 0.0.3 (10.31.2018)
 
 - refactor, cleanup, and smoothing
